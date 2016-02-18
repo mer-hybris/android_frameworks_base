@@ -16960,13 +16960,6 @@ public class PackageManagerService extends IPackageManager.Stub {
         }
 
         @Override
-        public void setImePackagesProvider(PackagesProvider provider) {
-            synchronized (mPackages) {
-                mDefaultPermissionPolicy.setImePackagesProviderLPr(provider);
-            }
-        }
-
-        @Override
         public void setVoiceInteractionPackagesProvider(PackagesProvider provider) {
             synchronized (mPackages) {
                 mDefaultPermissionPolicy.setVoiceInteractionPackagesProviderLPw(provider);
