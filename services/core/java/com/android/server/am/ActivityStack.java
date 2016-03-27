@@ -80,6 +80,7 @@ import android.os.RemoteException;
 import android.os.SystemClock;
 import android.os.Trace;
 import android.os.UserHandle;
+import android.provider.Settings;
 import android.service.voice.IVoiceInteractionSession;
 import android.util.EventLog;
 import android.util.Slog;
@@ -1264,6 +1265,10 @@ final class ActivityStack {
                         }
                         if (r != starting) {
                             mStackSupervisor.startSpecificActivityLocked(r, false, false);
+                            if (activityNdx >= activities.size()) {
+                                // Record may be removed if its process needs to restart.
+                                activityNdx = activities.size() - 1;
+                            }
                         }
 
                     } else if (r.visible) {
@@ -1953,6 +1958,12 @@ final class ActivityStack {
             ActivityStack lastStack = mStackSupervisor.getLastStack();
             final boolean fromHome = lastStack.isHomeStack();
             if (!isHomeStack() && (fromHome || topTask() != task)) {
+                if( !fromHome && task.isOverHomeStack()) {
+                    int taskNdx = mTaskHistory.indexOf(task);
+                    if ((taskNdx + 1) < mTaskHistory.size()) {
+                        mTaskHistory.get(taskNdx +1).setTaskToReturnTo(task.getTaskToReturnTo());
+                    }
+                }
                 task.setTaskToReturnTo(fromHome
                         ? lastStack.topTask() == null
                                 ? HOME_ACTIVITY_TYPE
@@ -1988,13 +1999,15 @@ final class ActivityStack {
 
         boolean privacy = mService.mAppOpsService.getPrivacyGuardSettingForPackage(
                 next.app.uid, next.packageName);
+        boolean privacyNotification = (Settings.Secure.getInt(mService.mContext.getContentResolver(),
+                Settings.Secure.PRIVACY_GUARD_NOTIFICATION, 1) == 1);
 
         if (privacyGuardPackageName != null && !privacy) {
             Message msg = mService.mHandler.obtainMessage(
                     ActivityManagerService.CANCEL_PRIVACY_NOTIFICATION_MSG, next.userId);
             msg.sendToTarget();
             mStackSupervisor.mPrivacyGuardPackageName = null;
-        } else if (privacy) {
+        } else if (privacy && privacyNotification) {
             Message msg = mService.mHandler.obtainMessage(
                     ActivityManagerService.POST_PRIVACY_NOTIFICATION_MSG, next);
             msg.sendToTarget();

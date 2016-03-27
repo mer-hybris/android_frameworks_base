@@ -243,7 +243,6 @@
   <java-symbol type="attr" name="accessibilityFocusedDrawable"/>
 
   <java-symbol type="bool" name="def_custom_dateformat" />
-  <java-symbol type="bool" name="def_custom_sys_sound" />
   <java-symbol type="bool" name="action_bar_embed_tabs" />
   <java-symbol type="bool" name="action_bar_embed_tabs_pre_jb" />
   <java-symbol type="bool" name="action_bar_expanded_action_views_exclusive" />
@@ -348,6 +347,7 @@
   <java-symbol type="bool" name="config_restricted_merge" />
 
   <java-symbol type="integer" name="config_wifi_framework_current_network_boost" />
+  <java-symbol type="bool" name="config_legacyGpsHAL" />
 
   <java-symbol type="integer" name="config_bluetooth_max_advertisers" />
   <java-symbol type="integer" name="config_bluetooth_max_scan_filters" />
@@ -448,12 +448,6 @@
   <java-symbol type="string" name="CLIRDefaultOnNextCallOff" />
   <java-symbol type="string" name="CLIRDefaultOnNextCallOn" />
   <java-symbol type="string" name="CLIRPermanent" />
-  <java-symbol type="string" name="def_custom_sys_ringtone" />
-  <java-symbol type="string" name="def_custom_sys_ringtone2" />
-  <java-symbol type="string" name="def_custom_sys_ringtone3" />
-  <java-symbol type="string" name="def_custom_sys_notification" />
-  <java-symbol type="string" name="def_custom_sys_mms" />
-  <java-symbol type="string" name="def_custom_sys_alarm" />
   <java-symbol type="string" name="CfMmi" />
   <java-symbol type="string" name="ClipMmi" />
   <java-symbol type="string" name="ClirMmi" />
@@ -1599,6 +1593,7 @@
   <java-symbol type="bool" name="config_useAttentionLight" />
   <java-symbol type="bool" name="config_animateScreenLights" />
   <java-symbol type="bool" name="config_automatic_brightness_available" />
+  <java-symbol type="bool" name="config_autoBrightnessResetAmbientLuxAfterWarmUp" />
   <java-symbol type="bool" name="config_dozeAfterScreenOff" />
   <java-symbol type="bool" name="config_enableActivityRecognitionHardwareOverlay" />
   <java-symbol type="bool" name="config_enableFusedLocationOverlay" />
@@ -1653,6 +1648,10 @@
   <java-symbol type="id" name="replace_message" />
   <java-symbol type="fraction" name="config_dimBehindFadeDuration" />
   <java-symbol type="fraction" name="config_screenAutoBrightnessDozeScaleFactor" />
+  <java-symbol type="integer" name="config_autoBrightnessBrighteningLightDebounce"/>
+  <java-symbol type="integer" name="config_autoBrightnessDarkeningLightDebounce"/>
+  <java-symbol type="integer" name="config_autoBrightnessLightSensorRate"/>
+  <java-symbol type="integer" name="config_autoBrightnessAmbientLightHorizon"/>
   <java-symbol type="integer" name="config_carDockKeepsScreenOn" />
   <java-symbol type="integer" name="config_criticalBatteryWarningLevel" />
   <java-symbol type="integer" name="config_datause_notification_type" />
@@ -1976,6 +1975,7 @@
   <java-symbol type="string" name="websearch" />
   <java-symbol type="drawable" name="ic_media_video_poster" />
   <java-symbol type="string" name="config_webViewPackageName" />
+  <java-symbol type="string" name="config_alternateWebViewPackageName" />
 
   <!-- From SubtitleView -->
   <java-symbol type="dimen" name="subtitle_corner_radius" />
@@ -2179,5 +2179,6 @@
 
   <!-- From SignalStrength -->
   <java-symbol type="integer" name="config_LTE_RSRP_threshold_type" />
+  <java-symbol type="array"   name="config_LTE_RSRP_custom_levels" />
 
 </resources>

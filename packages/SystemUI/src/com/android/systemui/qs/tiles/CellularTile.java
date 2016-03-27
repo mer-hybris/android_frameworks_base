@@ -16,10 +16,12 @@
 
 package com.android.systemui.qs.tiles;
 
+import android.app.ActivityManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
+import android.os.UserHandle;
 import android.provider.Settings;
 import android.telephony.TelephonyManager;
 import android.view.LayoutInflater;
@@ -31,7 +33,8 @@ import com.android.systemui.qs.QSTile;
 import com.android.systemui.qs.QSTileView;
 import com.android.systemui.qs.SignalTileView;
 import com.android.systemui.statusbar.policy.NetworkController;
-import com.android.systemui.statusbar.policy.NetworkController.DataUsageInfo;
+import com.android.systemui.statusbar.policy.NetworkController.MobileDataController;
+import com.android.systemui.statusbar.policy.NetworkController.MobileDataController.DataUsageInfo;
 import com.android.systemui.statusbar.policy.NetworkController.NetworkSignalChangedCallback;
 import cyanogenmod.app.StatusBarPanelCustomTile;
 
@@ -49,14 +52,17 @@ public class CellularTile extends QSTile<QSTile.SignalState> {
             .putExtra("TARGET_THEME", "Theme.Material.Settings");
 
     private final NetworkController mController;
+    private final MobileDataController mDataController;
     private final CellularDetailAdapter mDetailAdapter;
-    TelephonyManager mTelephonyManager;
+    private final TelephonyManager mTelephonyManager;
 
     public CellularTile(Host host) {
         super(host);
         mController = host.getNetworkController();
+        mDataController = mController.getMobileDataController();
         mDetailAdapter = new CellularDetailAdapter();
-        mTelephonyManager = (TelephonyManager) mContext.getSystemService(Context.TELEPHONY_SERVICE);
+        mTelephonyManager =
+                (TelephonyManager) mContext.getSystemService(Context.TELEPHONY_SERVICE);
     }
 
     @Override
@@ -84,8 +90,15 @@ public class CellularTile extends QSTile<QSTile.SignalState> {
     }
 
     @Override
+    protected void handleUserSwitch(int newUserId) {
+        if (newUserId != UserHandle.USER_OWNER) {
+            refreshState();
+        }
+    }
+
+    @Override
     protected void handleClick() {
-        if (mController.isMobileDataSupported()) {
+        if (mDataController.isMobileDataSupported()) {
             showDetail(true);
         } else {
             mHost.startSettingsActivity(DATA_USAGE_SETTINGS);
@@ -103,7 +116,8 @@ public class CellularTile extends QSTile<QSTile.SignalState> {
 
     @Override
     protected void handleUpdateState(SignalState state, Object arg) {
-        state.visible = mController.hasMobileDataFeature();
+        state.visible = mController.hasMobileDataFeature()
+                && (ActivityManager.getCurrentUser() == UserHandle.USER_OWNER);
         if (!state.visible) return;
         final CallbackInfo cb = (CallbackInfo) arg;
         if (cb == null) return;
@@ -180,7 +194,7 @@ public class CellularTile extends QSTile<QSTile.SignalState> {
                 int mobileSignalIconId,
                 String mobileSignalContentDescriptionId, int dataTypeIconId,
                 boolean activityIn, boolean activityOut,
-                String dataTypeContentDescriptionId, String description, boolean noSim,
+                String dataTypeContentDescriptionId, String description,
                 boolean isDataTypeIconWide) {
             mInfo.enabled = enabled;
             mInfo.mobileSignalIconId = mobileSignalIconId;
@@ -190,7 +204,6 @@ public class CellularTile extends QSTile<QSTile.SignalState> {
             mInfo.activityIn = activityIn;
             mInfo.activityOut = activityOut;
             mInfo.enabledDesc = description;
-            mInfo.noSim = noSim;
             mInfo.isDataTypeIconWide = isDataTypeIconWide;
             refreshState(mInfo);
         }
@@ -231,8 +244,8 @@ public class CellularTile extends QSTile<QSTile.SignalState> {
 
         @Override
         public Boolean getToggleState() {
-            return mController.isMobileDataSupported()
-                    ? mController.isMobileDataEnabled()
+            return mDataController.isMobileDataSupported()
+                    ? mDataController.isMobileDataEnabled()
                     : null;
         }
 
@@ -248,7 +261,7 @@ public class CellularTile extends QSTile<QSTile.SignalState> {
 
         @Override
         public void setToggleState(boolean state) {
-            mController.setMobileDataEnabled(state);
+            mDataController.setMobileDataEnabled(state);
         }
 
         @Override
@@ -256,7 +269,7 @@ public class CellularTile extends QSTile<QSTile.SignalState> {
             final DataUsageDetailView v = (DataUsageDetailView) (convertView != null
                     ? convertView
                     : LayoutInflater.from(mContext).inflate(R.layout.data_usage, parent, false));
-            final DataUsageInfo info = mController.getDataUsageInfo();
+            final DataUsageInfo info = mDataController.getDataUsageInfo();
             if (info == null) return v;
             v.bind(mHost, info);
             return v;

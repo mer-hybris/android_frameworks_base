@@ -65,7 +65,9 @@
 
     <java-symbol type="integer" name="config_deviceHardwareKeys" />
     <java-symbol type="integer" name="config_deviceHardwareWakeKeys" />
+    <java-symbol type="bool" name="config_singleStageCameraKey" />
     <java-symbol type="integer" name="config_longPressOnMenuBehavior" />
+    <java-symbol type="integer" name="config_longPressOnAppSwitchBehavior" />
 
     <java-symbol type="string" name="global_action_reboot" />
     <java-symbol type="string" name="lockscreen_missing_sim_message_short" />
@@ -77,7 +79,6 @@
     <!-- From services -->
     <java-symbol type="array" name="app_ops_labels" />
 
-    <java-symbol type="bool" name="config_setZenModeWhenSilentModeOn" />
     <java-symbol type="bool" name="config_deviceHasVariableButtonBrightness" />
 
     <java-symbol type="integer" name="config_buttonBrightnessSettingDefault" />
@@ -92,8 +93,6 @@
     <java-symbol type="string" name="usb_charging_notification_title" />
 
     <!-- Profiles -->
-    <java-symbol type="xml" name="profile_default" />
-    <java-symbol type="string" name="wildcardProfile" />
     <java-symbol type="string" name="profile_picker_title" />
     <java-symbol type="string" name="profile_none" />
     <java-symbol type="string" name="global_action_choose_profile" />
@@ -172,6 +171,9 @@
     <!-- Proximity check timeout -->
     <java-symbol type="integer" name="config_proximityCheckTimeout" />
 
+    <!-- Proximity check on screen on default -->
+    <java-symbol type="bool" name="config_proximityCheckOnWakeEnabledByDefault" />
+
     <!-- Developer settings - Kill app back press -->
     <java-symbol type="string" name="app_killed_message" />
 
@@ -182,10 +184,12 @@
     <java-symbol type="bool" name="config_hasRemovableLid" />
 
     <!-- Notification and battery light -->
+    <java-symbol type="bool" name="config_adjustableNotificationLedBrightness" />
     <java-symbol type="bool" name="config_intrusiveNotificationLed" />
     <java-symbol type="bool" name="config_multiColorNotificationLed" />
     <java-symbol type="bool" name="config_intrusiveBatteryLed" />
     <java-symbol type="bool" name="config_multiColorBatteryLed" />
+    <java-symbol type="bool" name="config_multipleNotificationLeds" />
     <java-symbol type="array" name="notification_light_package_mapping" />
     <java-symbol type="array" name="config_notificationNoAlertsVibePattern" />
 
@@ -193,6 +197,12 @@
     <java-symbol type="string" name="adb_net_active_notification_title" />
     <java-symbol type="string" name="adb_both_active_notification_title" />
     <java-symbol type="string" name="adb_active_generic_notification_message" />
+
+    <!-- ADB custom tile -->
+    <java-symbol type="string" name="adb_active_custom_tile" />
+    <java-symbol type="string" name="adb_active_custom_tile_both" />
+    <java-symbol type="string" name="adb_active_custom_tile_usb" />
+    <java-symbol type="string" name="adb_active_custom_tile_net" />
 
     <java-symbol type="bool" name="config_fetch_apn_from_omh_card" />
 
@@ -296,10 +306,6 @@
     <java-symbol type="string" name="usb_ext_media_unmountable_notification_message" />
     <java-symbol type="string" name="usb_ext_media_unmountable_notification_title" />
 
-    <!-- Automatic display brightness settings -->
-    <java-symbol type="integer" name="config_brighteningLightDebounce" />
-    <java-symbol type="integer" name="config_darkeningLightDebounce" />
-
     <!-- LiveDisplay -->
     <java-symbol type="string" name="live_display_title" />
     <java-symbol type="string" name="live_display_hint" />
@@ -337,6 +343,43 @@
 
     <!-- Quick Settings tile defaults -->
     <java-symbol type="string" name="config_defaultQuickSettingsTiles" />
- 
+
     <java-symbol type="array" name="config_externalCMServices" />
+
+    <!-- Fingerprint default name -->
+    <java-symbol type="string" name="fingerprint_default_name" />
+
+    <!-- global actions (zen mode buttons) -->
+    <java-symbol type="id" name="option4" />
+
+    <!-- LED pulse -->
+    <java-symbol type="bool" name="config_ledCanPulse" />
+
+    <!-- Non-themeable packages -->
+    <java-symbol type="array" name="non_themeable_packages" />
+
+    <!-- Config to disable showing ringtones from removable storage -->
+    <java-symbol type="bool" name="config_excludeRingtonesFromRemovableStorage" />
+
+    <!-- Wifi AP Disabled from Subscription change -->
+    <java-symbol type="string" name="subscription_change_disabled_wifi_ap" />
+
+    <!-- Region locked prebundled packages (per mcc) -->
+    <java-symbol type="array" name="config_region_locked_packages" />
+
+    <!-- Packages in this list should be a union of all packages defined in values-mccxxx (mcc) -->
+    <java-symbol type="array" name="config_restrict_to_region_locked_devices" />
+
+    <!-- Show data activity indicators on signal bar -->
+    <java-symbol type="bool" name="config_showDataActivityIndicators" />
+
+    <!-- Show WiFi activity indicators on signal bar -->
+    <java-symbol type="bool" name="config_showWifiActivityIndicators" />
+
+    <!-- Support Samsung docks -->
+    <java-symbol type="bool" name="config_forceAnalogCarDock" />
+    <java-symbol type="bool" name="config_forceAnalogDeskDock" />
+
+    <!-- WiFi turn off notification -->
+    <java-symbol type="string" name="notify_turn_wifi_off_title" />
 </resources>

@@ -755,10 +755,6 @@ bool BootAnimation::movie()
     pthread_mutex_init(&mp_lock, NULL);
     pthread_cond_init(&mp_cond, NULL);
 
-    property_get("persist.sys.silent", value, "null");
-    if (strncmp(value, "1", 1) != 0) {
-        playBackgroundMusic();
-    }
     for (size_t i=0 ; i<pcount ; i++) {
         const Animation::Part& part(animation.parts[i]);
         const size_t fcount = part.frames.size();
@@ -882,6 +878,12 @@ bool BootAnimation::movie()
 
     }
 
+    property_get("persist.sys.silent", value, "null");
+    if (strncmp(value, "1", 1) != 0) {
+	ALOGD("playing boot audio here");
+        playBackgroundMusic();
+    }
+
     if (isMPlayerPrepared) {
         ALOGD("waiting for media player to complete.");
         struct timespec timeout;
@@ -916,8 +918,19 @@ char *BootAnimation::getAnimationFileName(ImageID image)
             SYSTEM_ENCRYPTED_SHUTDOWN_ANIMATION_FILE,
             THEME_SHUTDOWN_ANIMATION_FILE } };
     int state;
+    char sku[PROPERTY_VALUE_MAX];
+    char skusuffix[PATH_MAX];
 
     state = checkBootState() ? 0 : 1;
+
+    property_get("ro.prebundled.mcc", sku, "000");
+    sprintf(skusuffix,"-%s",sku);
+
+    String16 skuPath(fileName[state][image]);
+    skuPath.insert(skuPath.size()-4,String16(skusuffix));
+
+    if (access(String8(skuPath).string(), R_OK) == 0)
+        return (char *)String8(skuPath).string();
 
     return fileName[state][image];
 }

@@ -132,6 +132,13 @@ public class SubscriptionManager {
      */
     public static final String NETWORK_MODE = "network_mode";
 
+    /**
+     * The user configured Network mode of SIM/sub.
+     * <P>Type: INTEGER (int)</P>
+     * {@hide}
+     */
+    public static final String USER_NETWORK_MODE = "user_network_mode";
+
     /** {@hide} */
     public static final int DEFAULT_NW_MODE = -1;
 
@@ -335,6 +342,10 @@ public class SubscriptionManager {
             public void onSubscriptionsChanged() {
                 if (DBG) log("callback: received, sendEmptyMessage(0) to handler");
                 mHandler.sendEmptyMessage(0);
+            }
+            @Override
+            public void onUnregistered() {
+                mHandler.removeMessages(0);
             }
         };
 

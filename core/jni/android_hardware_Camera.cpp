@@ -495,6 +495,21 @@ static void android_hardware_Camera_setLongshot(JNIEnv *env, jobject thiz, jbool
     }
 }
 
+static void android_hardware_Camera_stopLongshot(JNIEnv *env, jobject thiz)
+{
+    ALOGV("stopLongshot");
+    JNICameraContext* context;
+    status_t rc;
+    sp<Camera> camera = get_native_camera(env, thiz, &context);
+    if (camera == 0) return;
+
+    rc = camera->sendCommand(CAMERA_CMD_STOP_LONGSHOT, 0, 0);
+
+    if (rc != NO_ERROR) {
+       jniThrowException(env, "java/lang/RuntimeException", "enabling longshot mode failed");
+    }
+}
+
 static void android_hardware_Camera_sendHistogramData(JNIEnv *env, jobject thiz)
  {
    ALOGV("sendHistogramData" );
@@ -1048,6 +1063,18 @@ static void android_hardware_Camera_enableFocusMoveCallback(JNIEnv *env, jobject
     }
 }
 
+static void android_hardware_Camera_sendVendorCommand(JNIEnv *env, jobject thiz,
+        jint cmd, jint arg1, jint arg2)
+{
+    ALOGV("sendVendorCommand");
+    sp<Camera> camera = get_native_camera(env, thiz, NULL);
+    if (camera == 0) return;
+
+    if (camera->sendCommand(cmd, arg1, arg2) != NO_ERROR) {
+        jniThrowRuntimeException(env, "sending vendor command failed");
+    }
+}
+
 //-------------------------------------------------
 
 static JNINativeMethod camMethods[] = {
@@ -1105,9 +1132,12 @@ static JNINativeMethod camMethods[] = {
   { "native_sendHistogramData",
     "()V",
      (void *)android_hardware_Camera_sendHistogramData },
- { "native_setLongshot",
-     "(Z)V",
-      (void *)android_hardware_Camera_setLongshot },
+  { "native_setLongshot",
+    "(Z)V",
+     (void *)android_hardware_Camera_setLongshot },
+  { "native_stopLongshot",
+    "()V",
+     (void *)android_hardware_Camera_stopLongshot },
   { "native_setParameters",
     "(Ljava/lang/String;)V",
     (void *)android_hardware_Camera_setParameters },
@@ -1144,6 +1174,9 @@ static JNINativeMethod camMethods[] = {
   { "enableFocusMoveCallback",
     "(I)V",
     (void *)android_hardware_Camera_enableFocusMoveCallback},
+  { "_sendVendorCommand",
+    "(III)V",
+    (void *)android_hardware_Camera_sendVendorCommand },
 };
 
 struct field {
@@ -1210,8 +1243,8 @@ int register_android_hardware_Camera(JNIEnv *env)
         { "org/codeaurora/camera/ExtendedFace", "rect", "Landroid/graphics/Rect;", &fields.face_rect },
         { "org/codeaurora/camera/ExtendedFace", "score", "I", &fields.face_score },
         { "org/codeaurora/camera/ExtendedFace", "id", "I", &fields.face_id },
-        { "org/codeaurora/camera/ExtendedFace", "leftEye", "Landroid/graphics/Point;", &fields.face_left_eye },
-        { "org/codeaurora/camera/ExtendedFace", "rightEye", "Landroid/graphics/Point;", &fields.face_right_eye },
+        { "android/hardware/Camera$Face", "leftEye", "Landroid/graphics/Point;", &fields.face_left_eye },
+        { "android/hardware/Camera$Face", "rightEye", "Landroid/graphics/Point;", &fields.face_right_eye },
         { "org/codeaurora/camera/ExtendedFace", "mouth", "Landroid/graphics/Point;", &fields.face_mouth },
         { "org/codeaurora/camera/ExtendedFace", "smileDegree", "I", &fields.face_sm_degree },
         { "org/codeaurora/camera/ExtendedFace", "smileScore", "I", &fields.face_sm_score },

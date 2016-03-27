@@ -818,6 +818,22 @@ public abstract class PackageManager {
     public static final int INSTALL_FAILED_THEME_UNKNOWN_ERROR = -402;
 
     /**
+     * Used for prebundles
+     * Installation failed for a prebundled app because the user previously uninstalled it
+     * and we don't want to bring it back
+     * @hide
+     */
+    public static final int INSTALL_FAILED_UNINSTALLED_PREBUNDLE = -403;
+
+    /**
+     * Used for prebundles
+     * Installation failed for a prebundled app because it wasn't needed in the default
+     * mobile country exported by the hardware
+     * @hide
+     */
+    public static final int INSTALL_FAILED_REGION_LOCKED_PREBUNDLE = -404; //bloat not found
+
+    /**
      * Flag parameter for {@link #deletePackage} to indicate that you don't want to delete the
      * package's data directory.
      *
@@ -1632,6 +1648,12 @@ public abstract class PackageManager {
     @SdkConstant(SdkConstantType.FEATURE)
     public static final String FEATURE_GAMEPAD = "android.hardware.gamepad";
 
+    /**
+     * Feature for {@link #getSystemAvailableFeatures} and
+     * {@link #hasSystemFeature}: The device is capable of reading a user's fingerprint
+     * @hide
+     */
+    public static final String FEATURE_FINGERPRINT = "cyanogenmod.hardware.fingerprint";
 
     /**
      * Action to external storage service to clean out removed apps.

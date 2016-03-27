@@ -2334,18 +2334,6 @@ public abstract class Context {
 
     /**
      * Use with {@link #getSystemService} to retrieve a
-     * {@link android.app.ProfileManager} for setting
-     * notification profiles.
-     *
-     * @see #getSystemService
-     * @see android.app.ProfileManager
-     *
-     * @hide
-     */
-    public static final String PROFILE_SERVICE = "profile";
-
-    /**
-     * Use with {@link #getSystemService} to retrieve a
      * {@link android.view.accessibility.AccessibilityManager} for giving the user
      * feedback for UI events through the registered event listeners.
      *
@@ -2949,17 +2937,6 @@ public abstract class Context {
      * @hide
      */
     public static final String TORCH_SERVICE = "torch";
-
-    /**
-     * Use with {@link #getSystemService} to retrieve a
-     * {@link android.hardware.CmHardwareManager} for controlling
-     * hw specific features
-     *
-     * @see #getSystemService
-     * @see android.hardware.CmHardwareManager
-     * @hide
-     */
-    public static final String CMHW_SERVICE = "cmhw";
 
     /**
      * {@link com.android.server.KillSwitchService}for accessing the kill switch service.

@@ -160,7 +160,7 @@ public abstract class BaseStatusBar extends SystemUI implements
     private static final Uri SPAM_MESSAGE_URI = new Uri.Builder()
            .scheme(ContentResolver.SCHEME_CONTENT)
             .authority(SpamMessageProvider.AUTHORITY)
-            .appendPath("message")
+            .appendPath("messages")
             .build();
 
     protected CommandQueue mCommandQueue;
@@ -292,6 +292,10 @@ public abstract class BaseStatusBar extends SystemUI implements
             updateNotifications();
         }
     };
+
+    public RemoteViews.OnClickHandler getOnClickHandler() {
+        return mOnClickHandler;
+    }
 
     private RemoteViews.OnClickHandler mOnClickHandler = new RemoteViews.OnClickHandler() {
         @Override
@@ -441,7 +445,7 @@ public abstract class BaseStatusBar extends SystemUI implements
         public void onNotificationPosted(final StatusBarNotification sbn,
                 final RankingMap rankingMap) {
             if (DEBUG) Log.d(TAG, "onNotificationPosted: " + sbn);
-            mHandler.post(new Runnable() {
+            final Runnable notificationPost = new Runnable() {
                 @Override
                 public void run() {
                     Notification n = sbn.getNotification();
@@ -471,7 +475,12 @@ public abstract class BaseStatusBar extends SystemUI implements
                         addNotification(sbn, rankingMap);
                     }
                 }
-            });
+            };
+            if (TextUtils.equals(sbn.getNotification().category, Notification.CATEGORY_CALL)) {
+                mHandler.postAtFrontOfQueue(notificationPost);
+            } else {
+                mHandler.post(notificationPost);
+            }
         }
 
         @Override
@@ -898,12 +907,17 @@ public abstract class BaseStatusBar extends SystemUI implements
             filterButton.setVisibility(View.VISIBLE);
             filterButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    ContentValues values = new ContentValues();
-                    String message = SpamFilter.getNotificationContent(
-                    sbn.getNotification());
-                    values.put(NotificationTable.MESSAGE_TEXT, message);
-                    values.put(PackageTable.PACKAGE_NAME, pkg);
-                    mContext.getContentResolver().insert(SPAM_MESSAGE_URI, values);
+                    AsyncTask.execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            ContentValues values = new ContentValues();
+                            String message = SpamFilter.getNotificationContent(
+                                    sbn.getNotification());
+                            values.put(NotificationTable.MESSAGE_TEXT, message);
+                            values.put(PackageTable.PACKAGE_NAME, pkg);
+                            mContext.getContentResolver().insert(SPAM_MESSAGE_URI, values);
+                        }
+                    });
                     removeNotification(sbn.getKey(), null);
                     onNotificationClear(sbn);
                 }
@@ -1091,12 +1105,14 @@ public abstract class BaseStatusBar extends SystemUI implements
             mWindowManager.removeView(mSearchPanelView);
         }
 
-        // Provide SearchPanel with a temporary parent to allow layout params to work.
-        LinearLayout tmpRoot = new LinearLayout(mContext);
-        mSearchPanelView = (SearchPanelView) LayoutInflater.from(mContext).inflate(
-                 R.layout.status_bar_search_panel, tmpRoot, false);
-        mSearchPanelView.setOnTouchListener(
-                 new TouchOutsideListener(MSG_CLOSE_SEARCH_PANEL, mSearchPanelView));
+        if (mSearchPanelView == null) {
+            // Provide SearchPanel with a temporary parent to allow layout params to work.
+            LinearLayout tmpRoot = new LinearLayout(mContext);
+            mSearchPanelView = (SearchPanelView) LayoutInflater.from(mContext).inflate(
+                    R.layout.status_bar_search_panel, tmpRoot, false);
+            mSearchPanelView.setOnTouchListener(
+                    new TouchOutsideListener(MSG_CLOSE_SEARCH_PANEL, mSearchPanelView));
+        }
         mSearchPanelView.setVisibility(View.GONE);
         boolean vertical = mNavigationBarView != null && mNavigationBarView.isVertical();
         mSearchPanelView.setHorizontal(vertical);
@@ -1178,7 +1194,7 @@ public abstract class BaseStatusBar extends SystemUI implements
 
     public abstract void resetHeadsUpDecayTimer();
 
-    public abstract void scheduleHeadsUpOpen();
+    public abstract void scheduleHeadsUpOpen(boolean immediate);
 
     public abstract void scheduleHeadsUpClose();
 
@@ -1245,13 +1261,19 @@ public abstract class BaseStatusBar extends SystemUI implements
         public void handleMessage(Message m) {
             switch (m.what) {
              case MSG_SHOW_RECENT_APPS:
-                 showRecents(m.arg1 > 0);
+                 if (mDeviceProvisioned) {
+                     showRecents(m.arg1 > 0);
+                 }
                  break;
              case MSG_HIDE_RECENT_APPS:
-                 hideRecents(m.arg1 > 0, m.arg2 > 0);
+                 if (mDeviceProvisioned) {
+                     hideRecents(m.arg1 > 0, m.arg2 > 0);
+                 }
                  break;
              case MSG_TOGGLE_RECENTS_APPS:
-                 toggleRecents();
+                 if (mDeviceProvisioned) {
+                     toggleRecents();
+                 }
                  break;
              case MSG_PRELOAD_RECENT_APPS:
                   preloadRecents();
@@ -1546,6 +1568,58 @@ public abstract class BaseStatusBar extends SystemUI implements
         return new NotificationClicker(intent, notificationKey, forHun);
     }
 
+    public void startPendingIntentDismissingKeyguard(final PendingIntent intent) {
+        if (!isDeviceProvisioned()) return;
+
+        final boolean keyguardShowing = mStatusBarKeyguardViewManager.isShowing();
+        final boolean afterKeyguardGone = intent.isActivity()
+                && PreviewInflater.wouldLaunchResolverActivity(mContext, intent.getIntent(),
+                mCurrentUserId);
+        dismissKeyguardThenExecute(new OnDismissAction() {
+            public boolean onDismiss() {
+                new Thread() {
+                    @Override
+                    public void run() {
+                        try {
+                            if (keyguardShowing && !afterKeyguardGone) {
+                                ActivityManagerNative.getDefault()
+                                        .keyguardWaitingForActivityDrawn();
+                            }
+
+                            // The intent we are sending is for the application, which
+                            // won't have permission to immediately start an activity after
+                            // the user switches to home.  We know it is safe to do at this
+                            // point, so make sure new activity switches are now allowed.
+                            ActivityManagerNative.getDefault().resumeAppSwitches();
+                        } catch (RemoteException e) {
+                        }
+
+                        try {
+                            intent.send();
+                        } catch (PendingIntent.CanceledException e) {
+                            // the stack trace isn't very helpful here.
+                            // Just log the exception message.
+                            Log.w(TAG, "Sending intent failed: " + e);
+
+                            // TODO: Dismiss Keyguard.
+                        }
+                        if (intent.isActivity()) {
+                            overrideActivityPendingAppTransition(keyguardShowing
+                                    && !afterKeyguardGone);
+                        }
+                    }
+                }.start();
+
+                // close the shade if it was open
+                animateCollapsePanels(CommandQueue.FLAG_EXCLUDE_RECENTS_PANEL,
+                        true /* force */);
+                visibilityChanged(false);
+
+                return true;
+            }
+        }, afterKeyguardGone);
+    }
+
     protected class NotificationClicker implements View.OnClickListener {
         private PendingIntent mIntent;
         private final String mNotificationKey;
@@ -1829,7 +1903,7 @@ public abstract class BaseStatusBar extends SystemUI implements
     protected void setZenMode(int mode) {
         if (!isDeviceProvisioned()) return;
         mZenMode = mode;
-        updateNotifications();
+        updateNotifications(true);
     }
 
     // extended in PhoneStatusBar
@@ -1851,7 +1925,10 @@ public abstract class BaseStatusBar extends SystemUI implements
 
     protected abstract void haltTicker();
     protected abstract void setAreThereNotifications();
-    protected abstract void updateNotifications();
+    protected void updateNotifications() {
+        updateNotifications(false);
+    }
+    protected abstract void updateNotifications(boolean immediate);
     protected abstract void tick(StatusBarNotification n, boolean firstTime);
     protected abstract void updateExpandedViewPos(int expandedPosition);
     protected abstract boolean shouldDisableNavbarGestures();

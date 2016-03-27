@@ -17,21 +17,9 @@
      limitations under the License.
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-  <string name="profileNameDefault">Стандартний</string>
-  <string name="profileNameWork">Робота</string>
-  <string name="profileNameHome">Дім</string>
-  <string name="profileNameSilent">Беззвучний</string>
-  <string name="profileNameNight">Ніч</string>
-  <string name="profileNameAutomobile">Автомобіль</string>
-  <string name="profileGroupPhone">Телефон</string>
-  <string name="profileGroupCalendar">Календар</string>
-  <string name="profileGroupGmail">Gmail</string>
-  <string name="profileGroupEmail">Email</string>
-  <string name="profileGroupSMS">SMS</string>
-  <string name="wildcardProfile">Інше</string>
-  <string name="profile_none">Немає</string>
   <string name="profile_picker_title">Профілі</string>
   <string name="global_action_choose_profile">Профіль</string>
+  <string name="profile_none">Немає</string>
   <string name="global_action_screenshot">Скріншот</string>
   <string name="permlab_receiveProtectedSms">отримувати захищені SMS</string>
   <string name="permdesc_receiveProtectedSms">Дозволяє програмі отримувати захищені SMS.</string>
@@ -55,8 +43,6 @@
   <string name="permdesc_changePrivacyGuardState">Програма може вибрати, чи буде друга програма працювати в захищеному режимі. Коли програму запущено в захищеному режимі, вона не отримає доступ до персональних даних, таких як контакти, повідомлення чи журнал дзвінків.</string>
   <string name="privacy_guard_notification">Сторож Приватності активний</string>
   <string name="privacy_guard_notification_detail"><xliff:g id="app">%1$s</xliff:g> буде заборонено доступ до персональних даних</string>
-  <string name="permlab_useHardwareFramework">Взаємодія із обладнанням</string>
-  <string name="permdesc_useHardwareFramework">Програма може отримувати доступ до підсистемних апаратних абстракцій CyanogenMod.</string>
   <string name="permlab_setKeyguardWallpaper">встановлення шпалер екрану блокування</string>
   <string name="permdesc_setKeyguardWallpaper">Дозволяє програмі міняти шпалери екрану блокування.</string>
   <string name="privacy_guard_dialog_title">Сторож Приватності</string>
@@ -77,6 +63,10 @@
   <string name="adb_both_active_notification_title">ADB по USB та мережі увімкнено</string>
   <string name="adb_active_generic_notification_message">Торкніться, аби вимкнути налагодження.</string>
   <string name="usb_choose_notification_title">Натисніть для вибору налаштувань USB.</string>
+  <string name="adb_active_custom_tile">ADB - <xliff:g id="adb_type" example="USB">%1$s</xliff:g></string>
+  <string name="adb_active_custom_tile_both">USB та мережі</string>
+  <string name="adb_active_custom_tile_usb">USB</string>
+  <string name="adb_active_custom_tile_net">Мережа</string>
   <string name="permlab_interceptPackageLaunch">Перехоплення запуску додатку</string>
   <string name="permdesc_interceptPackageLaunch">Дозволити додатку перехоплювати запуски інших додатків</string>
   <string name="app_ops_access_camera">доступ до камери</string>
@@ -146,6 +136,8 @@
   <string name="perf_profile_pwrsv">Енергозбереження</string>
   <string name="perf_profile_bal">Баланс</string>
   <string name="perf_profile_perf">Продуктивність</string>
+  <string name="perf_profile_bias_power">Продуктивність</string>
+  <string name="perf_profile_bias_perf">Швидко</string>
   <string name="theme_install_error_title">Не вдалося інсталювати тему</string>
   <string name="theme_install_error_message">не вдалося інсталювати %s</string>
   <string name="theme_reset_notification_title">Тема відключена</string>
@@ -212,4 +204,15 @@
   <string name="quick_settings_tile_flashlight_not_title">Ліхтарик увімкнений</string>
   <string name="quick_settings_tile_flashlight_not_summary">Торкніться, щоб вимкнути</string>
   <string name="storage_sd_dock_card">SD-карта док-станції</string>
+  <string name="fingerprint_default_name">Відбиток пальця <xliff:g id="number">%d</xliff:g></string>
+  <string name="permlab_accessFingerprintService">Доступ до відбитків пальців</string>
+  <string name="permdesc_accessFingerprintService">Дозволяє додатку отримувати доступ до служби відбитків пальців. Додаток зможе додавати, видаляти, перейменовувати збережені відбитки та використовувати їх для автентифікації</string>
+  <string name="permlab_resetBatteryStats">скинути статистику акумулятора</string>
+  <string name="permdesc_resetBatteryStats">Дозволити програмі скидати дані про використання акумулятора.</string>
+  <string name="silent_mode_priority">Пріоритет</string>
+  <string name="silent_mode_none">Немає</string>
+  <string name="subscription_change_disabled_wifi_ap">Точку доступу Wi-Fi вимкнено через зміну SIM-картки</string>
+  <string name="notify_turn_wifi_off_title">Вимкнути Wi-Fi</string>
+  <string name="permlab_thirdPartyKeyguard">Сторонній екран блокування</string>
+  <string name="permdesc_thirdPartyKeyguard">Дозволяє використати програму як незахищене блокування екрану.</string>
 </resources>

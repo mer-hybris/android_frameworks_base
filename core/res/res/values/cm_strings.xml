@@ -16,32 +16,15 @@
      limitations under the License.
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <!-- Names of default profiles. -->
-    <string name="profileNameDefault">Default</string>
-    <string name="profileNameWork">Work</string>
-    <string name="profileNameHome">Home</string>
-    <string name="profileNameSilent">Silent</string>
-    <string name="profileNameNight">Night</string>
-    <string name="profileNameAutomobile">Automobile</string>
-
-    <!-- Names of application groups. -->
-    <string name="profileGroupPhone">Phone</string>
-    <string name="profileGroupCalendar">Calendar</string>
-    <string name="profileGroupGmail">Gmail</string>
-    <string name="profileGroupEmail">Email</string>
-    <string name="profileGroupSMS">SMS</string>
-
-    <!-- Name of wildcard profile. -->
-    <string name="wildcardProfile">Other</string>
-
-     <!-- The item label for the no profile selection item. -->
-     <string name="profile_none">None</string>
-
-     <!-- The title of the profile picker dialog. -->
-     <string name="profile_picker_title">Profiles</string>
+    <!-- The title of the profile picker dialog. -->
+    <string name="profile_picker_title">Profiles</string>
 
     <!-- label for item that opens the profile choosing dialog -->
     <string name="global_action_choose_profile">Profile</string>
+
+    <!-- The item label for the no profile selection item. -->
+    <string name="profile_none">None</string>
+
     <!-- label for item that screenshots in phone options dialog -->
     <string name="global_action_screenshot">Screenshot</string>
 
@@ -94,11 +77,6 @@
     <string name="privacy_guard_notification_detail"><xliff:g id="app">%1$s</xliff:g> will not be able to access personal data</string>
 
     <!-- Title of an application permission, listed so the user can choose whether they want the application to do this. -->
-    <string name="permlab_useHardwareFramework">use hardware framework</string>
-    <!-- Description of an application permission, listed so the user can choose whether they want to allow the application to do this. -->
-    <string name="permdesc_useHardwareFramework">Allows an app access to the CM hardware framework.</string>
-
-    <!-- Title of an application permission, listed so the user can choose whether they want the application to do this. -->
     <string name="permlab_setKeyguardWallpaper">set keyguard wallpaper</string>
     <!-- Description of an application permission, listed so the user can choose whether they want to allow the application to do this. -->
     <string name="permdesc_setKeyguardWallpaper">Allows an app to change the lock screen wallpaper.</string>
@@ -145,6 +123,12 @@
     <string name="adb_active_generic_notification_message">Touch to disable debugging.</string>
     <!-- USB_PREFERENCES: Notification for when no USB options chosen.  This is the title -->
     <string name="usb_choose_notification_title">Touch to choose USB options.</string>
+
+    <!-- ADB custom tile -->
+    <string name="adb_active_custom_tile">ADB - <xliff:g id="adb_type" example="USB">%1$s</xliff:g></string>
+    <string name="adb_active_custom_tile_both">USB &amp; network</string>
+    <string name="adb_active_custom_tile_usb">USB</string>
+    <string name="adb_active_custom_tile_net">Network</string>
 
     <!-- Title of an application permission, listed so the user can choose whether they want the application to do this. -->
     <string name="permlab_interceptPackageLaunch">intercept app launch</string>
@@ -342,5 +326,35 @@
 
     <!-- Storage description for the SD card on the dock -->
     <string name="storage_sd_dock_card">Dock SD card</string>
+
+    <!-- FINGERPRINT -->
+    <!-- Default fingerprint name when a new fingerprint is added -->
+    <string name="fingerprint_default_name">Fingerprint <xliff:g id="number">%d</xliff:g></string>
+    <!-- Title of an application permission, listed so the user can choose whether they want to allow the application to do this. -->
+    <string name="permlab_accessFingerprintService">access fingerprint service</string>
+    <!-- Description of an application permission, listed so the user can choose whether they want to allow the application to do this. -->
+    <string name="permdesc_accessFingerprintService">Allows an app to access the fingerprint service. The app can add, delete, rename and authenticate against fingerprints</string>
+
+    <!-- [CHAR LIMIT=NONE] Title of an application permission, listed so the user can choose
+         whether they want to allow the application to do this. -->
+    <string name="permlab_resetBatteryStats">reset battery statistics</string>
+    <!-- [CHAR LIMIT=NONE] Description of an application permission, listed so the user can choose
+         whether they want to allow the application to do this. -->
+    <string name="permdesc_resetBatteryStats">Allows an application to reset the current low-level battery usage data.</string>
+
+    <!-- Zen mode buttons -->
+    <string name="silent_mode_priority">Priority</string>
+    <string name="silent_mode_none">None</string>
+
+    <!-- Wifi Hotspot disabled due to subscription change -->
+    <string name="subscription_change_disabled_wifi_ap">Disabled Wi-Fi hotspot due to SIM subscription change</string>
+
+    <!-- WiFi turn off notification action text -->
+    <string name="notify_turn_wifi_off_title">Turn Wi-Fi off</string>
+
+    <!-- Third party keyguard permission label -->
+    <string name="permlab_thirdPartyKeyguard">third party lock screen</string>
+    <!-- Third party keyguard permission description -->
+    <string name="permdesc_thirdPartyKeyguard">Allows an app to be used as an insecure lock screen.</string>
 
 </resources>

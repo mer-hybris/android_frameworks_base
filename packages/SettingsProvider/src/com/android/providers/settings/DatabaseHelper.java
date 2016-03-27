@@ -24,6 +24,7 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.IPackageManager;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
+import android.content.res.AssetManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.content.res.ThemeConfig;
@@ -47,6 +48,7 @@ import android.provider.Settings.Global;
 import android.provider.Settings.Secure;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
+import android.util.DisplayMetrics;
 import android.util.Log;
 
 import com.android.internal.content.PackageHelper;
@@ -81,10 +83,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     // settings.
     private static final int DATABASE_VERSION = 125;
 
-    private static final String HEADSET = "_headset";
-    private static final String SPEAKER = "_speaker";
-    private static final String EARPIECE = "_earpiece";
-
     private Context mContext;
     private int mUserHandle;
 
@@ -96,6 +94,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     //Maximum number of phones
     private static final int MAX_PHONE_COUNT = 3;
+
+    private String mPublicSrcDir;
 
     static {
         mValidTables.add(TABLE_SYSTEM);
@@ -127,6 +127,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         super(context, dbNameForUser(userHandle), null, DATABASE_VERSION);
         mContext = context;
         mUserHandle = userHandle;
+        try {
+            String packageName = mContext.getPackageName();
+            mPublicSrcDir = mContext.getPackageManager().getApplicationInfo(packageName, 0)
+                    .publicSourceDir;
+        } catch (NameNotFoundException e) {
+            e.printStackTrace();
+        }
     }
 
     public static boolean isValidTable(String name) {
@@ -693,6 +700,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                    Secure.LOCK_PATTERN_ENABLED,
                    Secure.LOCK_PATTERN_VISIBLE,
                    Secure.LOCK_PATTERN_TACTILE_FEEDBACK_ENABLED,
+                   Secure.LOCK_PASS_TO_SECURITY_VIEW,
                    Secure.LOCK_PATTERN_SIZE,
                    Secure.LOCK_DOTS_VISIBLE,
                    Secure.LOCK_SHOW_ERROR_PATH,
@@ -2347,10 +2355,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
      */
     private void loadVolumeLevels(SQLiteDatabase db) {
         SQLiteStatement stmt = null;
-        if (mContext.getResources().getBoolean(R.bool.def_custom_sys_volume)) {
-            loadCustomizedVolumeLevels(db);
-            return;
-        }
         try {
             stmt = db.compileStatement("INSERT OR IGNORE INTO system(name,value)"
                     + " VALUES(?,?);");
@@ -2375,97 +2379,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     stmt,
                     Settings.System.VOLUME_BLUETOOTH_SCO,
                     AudioManager.DEFAULT_STREAM_VOLUME[AudioManager.STREAM_BLUETOOTH_SCO]);
-
-            // By default:
-            // - ringtones, notification, system and music streams are affected by ringer mode
-            // on non voice capable devices (tablets)
-            // - ringtones, notification and system streams are affected by ringer mode
-            // on voice capable devices (phones)
-            int ringerModeAffectedStreams = (1 << AudioManager.STREAM_RING) |
-                                            (1 << AudioManager.STREAM_NOTIFICATION) |
-                                            (1 << AudioManager.STREAM_SYSTEM) |
-                                            (1 << AudioManager.STREAM_SYSTEM_ENFORCED);
-            if (!mContext.getResources().getBoolean(
-                    com.android.internal.R.bool.config_voice_capable)) {
-                ringerModeAffectedStreams |= (1 << AudioManager.STREAM_MUSIC);
-            }
-            loadSetting(stmt, Settings.System.MODE_RINGER_STREAMS_AFFECTED,
-                    ringerModeAffectedStreams);
-
-            loadSetting(stmt, Settings.System.MUTE_STREAMS_AFFECTED,
-                    ((1 << AudioManager.STREAM_MUSIC) |
-                     (1 << AudioManager.STREAM_RING) |
-                     (1 << AudioManager.STREAM_NOTIFICATION) |
-                     (1 << AudioManager.STREAM_SYSTEM)));
-        } finally {
-            if (stmt != null) stmt.close();
-        }
-
-        loadVibrateWhenRingingSetting(db);
-    }
-
-    private void loadCustomizedVolumeLevels(SQLiteDatabase db) {
-        SQLiteStatement stmt = null;
-        try {
-            stmt = db.compileStatement("INSERT OR IGNORE INTO system(name,value)"
-                    + " VALUES(?,?);");
-
-            loadSetting(stmt, Settings.System.VOLUME_MUSIC,
-                    mContext.getResources().getInteger(R.integer.def_music_volume));
-            loadSetting(stmt, Settings.System.VOLUME_RING,
-                    mContext.getResources().getInteger(R.integer.def_ringtone_volume));
-            loadSetting(stmt, Settings.System.VOLUME_SYSTEM,
-                    mContext.getResources().getInteger(R.integer.def_system_volume));
-            loadSetting(
-                    stmt,
-                    Settings.System.VOLUME_VOICE,
-                    mContext.getResources().getInteger(R.integer.def_voice_call_volume));
-            loadSetting(stmt, Settings.System.VOLUME_ALARM,
-                    mContext.getResources().getInteger(R.integer.def_alarm_volume));
-            loadSetting(
-                    stmt,
-                    Settings.System.VOLUME_NOTIFICATION,
-                    mContext.getResources().getInteger(R.integer.def_notification_volume));
-            loadSetting(
-                    stmt,
-                    Settings.System.VOLUME_BLUETOOTH_SCO,
-                    mContext.getResources().getInteger(R.integer.def_bluetooth_sco_volume));
-
-            // set headset default volume
-            loadSetting(stmt, Settings.System.VOLUME_MUSIC + HEADSET,
-                    mContext.getResources().getInteger(R.integer.def_music_headset_volume));
-            loadSetting(stmt, Settings.System.VOLUME_RING + HEADSET,
-                    mContext.getResources().getInteger(R.integer.def_ringtone_headset_volume));
-            loadSetting(stmt, Settings.System.VOLUME_SYSTEM + HEADSET,
-                    mContext.getResources().getInteger(R.integer.def_system_headset_volume));
-            loadSetting(
-                    stmt,
-                    Settings.System.VOLUME_VOICE + HEADSET,
-                    mContext.getResources().getInteger(R.integer.def_voice_call_headset_volume));
-            loadSetting(stmt, Settings.System.VOLUME_ALARM + HEADSET,
-                    mContext.getResources().getInteger(R.integer.def_alarm_headset_volume));
-            loadSetting(
-                    stmt,
-                    Settings.System.VOLUME_NOTIFICATION + HEADSET,
-                    mContext.getResources().getInteger(R.integer.def_notification_headset_volume));
-            loadSetting(
-                    stmt,
-                    Settings.System.VOLUME_BLUETOOTH_SCO + HEADSET,
-                    mContext.getResources().getInteger(R.integer.def_bluetooth_sco_headset_volume));
-
-            // set speaker default volume
-            loadSetting(stmt, Settings.System.VOLUME_RING + SPEAKER,
-                    mContext.getResources().getInteger(R.integer.def_ringtone_speaker_volume));
-            loadSetting(
-                    stmt,
-                    Settings.System.VOLUME_VOICE + SPEAKER,
-                    mContext.getResources().getInteger(R.integer.def_voice_call_speaker_volume));
-
-            // set earpiece default volume
-            loadSetting(
-                    stmt,
-                    Settings.System.VOLUME_VOICE + EARPIECE,
-                    mContext.getResources().getInteger(R.integer.def_voice_call_earpiece_volume));
 
             // By default:
             // - ringtones, notification, system and music streams are affected by ringer mode
@@ -2598,16 +2511,31 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             loadBooleanSetting(stmt, Settings.System.NOTIFICATION_LIGHT_PULSE,
                     R.bool.def_notification_pulse);
 
+            loadBooleanSetting(stmt, Settings.System.NOTIFICATION_LIGHT_PULSE_CUSTOM_ENABLE,
+                    R.bool.def_notification_pulse_custom_enable);
+
+            if (mContext.getResources().getBoolean(R.bool.def_notification_pulse_custom_enable)) {
+                loadStringSetting(stmt,Settings.System.NOTIFICATION_LIGHT_PULSE_CUSTOM_VALUES,
+                        R.string.def_notification_pulse_custom_value);
+            }
+
             loadUISoundEffectsSettings(stmt);
 
             loadIntegerSetting(stmt, Settings.System.POINTER_SPEED,
                     R.integer.def_pointer_speed);
 
-            loadStringSetting(stmt, Settings.System.TIME_12_24,
-                    R.string.def_time_format);
+            if (!TextUtils.isEmpty(mContext.getResources().getString(R.string.def_time_format))) {
+                loadStringSetting(stmt, Settings.System.TIME_12_24,
+                        R.string.def_time_format);
+            }
 
-            loadStringSetting(stmt, Settings.System.DATE_FORMAT,
-                    R.string.def_date_format);
+            if (!TextUtils.isEmpty(mContext.getResources().getString(R.string.def_date_format))) {
+                loadStringSetting(stmt, Settings.System.DATE_FORMAT,
+                        R.string.def_date_format);
+            }
+
+            loadIntegerSetting(stmt, Settings.System.DOUBLE_TAP_SLEEP_GESTURE,
+                    R.integer.def_double_tap_sleep_gesture);
 
             loadIntegerSetting(stmt, Settings.System.STATUS_BAR_NOTIF_COUNT,
                     R.integer.def_notif_count);
@@ -2627,6 +2555,18 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             loadIntegerSetting(stmt, Settings.System.QS_QUICK_PULLDOWN,
                     R.integer.def_qs_quick_pulldown);
 
+            loadBooleanSetting(stmt, Settings.System.SWAP_VOLUME_KEYS_ON_ROTATION,
+                    R.bool.def_swap_volume_keys_on_rotation);
+
+            loadIntegerSetting(stmt, Settings.System.NOTIFICATION_LIGHT_BRIGHTNESS_LEVEL,
+                    R.integer.def_notification_brightness_level);
+
+            loadBooleanSetting(stmt, Settings.System.NOTIFICATION_LIGHT_MULTIPLE_LEDS_ENABLE,
+                    R.bool.def_notification_multiple_leds);
+
+            loadBooleanSetting(stmt, Settings.System.SYSTEM_PROFILES_ENABLED,
+                    R.bool.def_system_profiles_enabled);
+
         } finally {
             if (stmt != null) stmt.close();
         }
@@ -2639,6 +2579,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 R.bool.def_sound_effects_enabled);
         loadBooleanSetting(stmt, Settings.System.HAPTIC_FEEDBACK_ENABLED,
                 R.bool.def_haptic_feedback);
+        loadBooleanSetting(stmt, Settings.System.VOLUME_ADJUST_SOUNDS_ENABLED,
+                R.bool.def_volume_adjust_sounds_enabled);
 
         loadIntegerSetting(stmt, Settings.System.LOCKSCREEN_SOUNDS_ENABLED,
             R.integer.def_lockscreen_sounds_enabled);
@@ -2657,8 +2599,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     }
 
     private void loadDefaultThemeSettings(SQLiteStatement stmt) {
-        loadStringSetting(stmt, Settings.Secure.DEFAULT_THEME_PACKAGE, R.string.def_theme_package);
-        loadStringSetting(stmt, Settings.Secure.DEFAULT_THEME_COMPONENTS,
+        loadRegionLockedStringSetting(stmt, Settings.Secure.DEFAULT_THEME_PACKAGE,
+                R.string.def_theme_package);
+        loadRegionLockedStringSetting(stmt, Settings.Secure.DEFAULT_THEME_COMPONENTS,
                 R.string.def_theme_components);
     }
 
@@ -2736,6 +2679,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     com.android.internal.R.string.config_dreamsDefaultComponent);
             loadStringSetting(stmt, Settings.Secure.SCREENSAVER_DEFAULT_COMPONENT,
                     com.android.internal.R.string.config_dreamsDefaultComponent);
+            loadBooleanSetting(stmt, Settings.Secure.DOZE_ENABLED,
+                                     R.bool.def_dozeEnabledByDefault);
 
             loadBooleanSetting(stmt, Settings.Secure.ACCESSIBILITY_DISPLAY_MAGNIFICATION_ENABLED,
                     R.bool.def_accessibility_display_magnification_enabled);
@@ -2787,9 +2732,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
             loadBooleanSetting(stmt, Settings.Secure.STATS_COLLECTION,
                     R.bool.def_cm_stats_collection);
-
-            loadBooleanSetting(stmt, Settings.Secure.ADVANCED_MODE,
-                    com.android.internal.R.bool.config_advancedSettingsMode);
 
             loadBooleanSetting(stmt, Settings.Secure.SPELL_CHECKER_ENABLED,
                     R.bool.def_spell_checker);
@@ -2904,14 +2846,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             }
 
             // Mobile Data default, based on build
-            loadBooleanSetting(stmt, Settings.Global.MOBILE_DATA,
+            loadRegionLockedBooleanSetting(stmt, Settings.Global.MOBILE_DATA,
                     R.bool.def_enable_mobile_data);
 
             int phoneCount = TelephonyManager.getDefault().getPhoneCount();
             // SUB specific flags for Multisim devices
             for (int phoneId = 0; phoneId < MAX_PHONE_COUNT; phoneId++) {
                 // Mobile Data default, based on build
-                loadBooleanSetting(stmt, Settings.Global.MOBILE_DATA + phoneId,
+                loadRegionLockedBooleanSetting(stmt, Settings.Global.MOBILE_DATA + phoneId,
                         R.bool.def_enable_mobile_data);
 
                 // Data roaming default, based on build
@@ -3030,6 +2972,36 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         stmt.bindString(1, key);
         stmt.bindString(2, value.toString());
         stmt.execute();
+    }
+
+    private Resources getRegionLockedResources() {
+        Configuration tempConfiguration = new Configuration();
+        String mcc = SystemProperties.get("ro.prebundled.mcc");
+        Resources customResources = null;
+        if (!TextUtils.isEmpty(mcc)) {
+            tempConfiguration.mcc = Integer.parseInt(mcc);
+            AssetManager assetManager = new AssetManager();
+            assetManager.addAssetPath(mPublicSrcDir);
+            customResources = new Resources(assetManager, new DisplayMetrics(),
+                    tempConfiguration);
+        }
+
+        return customResources;
+    }
+
+    private void loadRegionLockedStringSetting(SQLiteStatement stmt, String key, int resid) {
+        Resources customResources = getRegionLockedResources();
+        loadSetting(stmt, key, customResources == null ? mContext.getResources().getString(resid)
+                : customResources.getString(resid));
+    }
+
+    private void loadRegionLockedBooleanSetting(SQLiteStatement stmt, String key, int resId) {
+        Resources customResources = getRegionLockedResources();
+        if (customResources == null) {
+            customResources = mContext.getResources();
+        }
+
+        loadSetting(stmt, key, customResources.getBoolean(resId) ? "1" : "0");
     }
 
     private void loadStringSetting(SQLiteStatement stmt, String key, int resid) {

@@ -93,12 +93,11 @@ import java.io.StringReader;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Date;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Observable;
 import java.util.Observer;
-import java.util.Vector;
 import libcore.io.IoUtils;
 
 /**
@@ -220,6 +219,7 @@ public class GpsLocationProvider implements LocationProviderInterface {
     private static final int REMOVE_LISTENER = 9;
     private static final int INJECT_NTP_TIME_FINISHED = 10;
     private static final int DOWNLOAD_XTRA_DATA_FINISHED = 11;
+    private static final int GET_DEFAULT_APN = 13;
 
     // Request setid
     private static final int AGPS_RIL_REQUEST_SETID_IMSI = 1;
@@ -359,6 +359,7 @@ public class GpsLocationProvider implements LocationProviderInterface {
 
     private int mPositionMode;
 
+    private HashSet<String> mLastKnownMccMnc;
     private boolean mAGPSConfigDb = false;
 
     // Current request from underlying location clients.
@@ -396,6 +397,9 @@ public class GpsLocationProvider implements LocationProviderInterface {
     private final GpsNetInitiatedHandler mNIHandler;
 
     private String mDefaultApn;
+
+    // true for old GPS HALs
+    private boolean mLegacyGpsHAL = false;
 
     // Wakelocks
     private final static String WAKELOCK_KEY = "GpsLocationProvider";
@@ -499,18 +503,14 @@ public class GpsLocationProvider implements LocationProviderInterface {
     };
 
     private void subscriptionOrSimChanged(Context context) {
-        Log.d(TAG, "received SIM realted action: ");
-        TelephonyManager phone = (TelephonyManager)
-                mContext.getSystemService(Context.TELEPHONY_SERVICE);
-        String mccMnc = phone.getSimOperator();
-        if (!TextUtils.isEmpty(mccMnc)) {
-            Log.d(TAG, "SIM MCC/MNC is available: " + mccMnc);
-            synchronized (mLock) {
-                reloadGpsProperties(context, mProperties);
+        HashSet<String> mccMnc = getKnownMccMnc(context);
+        Log.d(TAG, "received SIM change, new known MCC/MNC: " + mccMnc);
+        synchronized (mLock) {
+            if (!mccMnc.isEmpty() && !mccMnc.equals(mLastKnownMccMnc)) {
+                reloadGpsProperties(context, mProperties, mccMnc);
                 mNIHandler.setSuplEsEnabled(mSuplEsEnabled);
             }
-        } else {
-            Log.d(TAG, "SIM MCC/MNC is still not available");
+            mLastKnownMccMnc = mccMnc;
         }
     }
 
@@ -547,7 +547,8 @@ public class GpsLocationProvider implements LocationProviderInterface {
         return native_is_supported();
     }
 
-    private void reloadGpsProperties(Context context, Properties properties) {
+    private void reloadGpsProperties(Context context, Properties properties,
+            HashSet<String> mccMnc) {
         Log.d(TAG, "Reset GPS properties, previous size = " + properties.size());
         loadPropertiesFromResource(context, properties);
         boolean isPropertiesLoadedFromFile = false;
@@ -562,7 +563,7 @@ public class GpsLocationProvider implements LocationProviderInterface {
             loadPropertiesFromFile(DEFAULT_PROPERTIES_FILE, properties);
         }
         // Store GPS configuration to Settings Database and then reload it
-        mAGPSConfigDb = testMccMncConfigurable(context);
+        mAGPSConfigDb = testMccMncConfigurable(context, mccMnc);
         loadPropertiesFromSettingsDb(context, properties);
         Log.d(TAG, "GPS properties reloaded, size = " + properties.size());
 
@@ -656,32 +657,39 @@ public class GpsLocationProvider implements LocationProviderInterface {
         context.getContentResolver().registerContentObserver(agpsResetTypeUri, true, observerForResetType);
     }
 
+    private HashSet<String> getKnownMccMnc(Context context) {
+        final TelephonyManager phone = (TelephonyManager)
+                context.getSystemService(Context.TELEPHONY_SERVICE);
+        final HashSet<String> mccMnc = new HashSet<String>();
+        final int phoneCnt = phone.getPhoneCount();
+        for (int i = 0;i < phoneCnt; ++i) {
+            String operator = phone.getNetworkOperatorForPhone(i);
+            if (!TextUtils.isEmpty(operator)) {
+                mccMnc.add(operator);
+            }
+        }
+        return mccMnc;
+    }
+
     /**
      * Test whether current mcc+mnc is in the configurable list
      */
-    private boolean testMccMncConfigurable(Context context) {
-        TelephonyManager phone = (TelephonyManager)
-                context.getSystemService(Context.TELEPHONY_SERVICE);
-        int phoneCnt = phone.getPhoneCount();
-        Vector<String> mccMnc = new Vector<String>();
-        for(int i = 0;i<phoneCnt;++i) {
-            int[] subIds = SubscriptionManager.getSubId(i);
-            if (subIds != null && subIds.length > 0) {
-                mccMnc.add(phone.getNetworkOperatorForSubscription(subIds[0]));
-            }
+    private boolean testMccMncConfigurable(Context context, HashSet<String> mccMnc) {
+        if (mccMnc.isEmpty()) {
+            return false;
         }
-        if (mccMnc.size() > 0) {
-            ContentResolver objContentResolver = context.getContentResolver();
-            String configurable_list = Settings.Global.getString(objContentResolver,
-                    Settings.Global.ASSISTED_GPS_CONFIGURABLE_LIST);
-            if (!TextUtils.isEmpty(configurable_list)) {
-                String[] list = configurable_list.split(",");
-                for (String item:list) {
-                    if(mccMnc.contains(item))
-                        return true;
+
+        ContentResolver resolver = context.getContentResolver();
+        String configurableList = Settings.Global.getString(resolver,
+                Settings.Global.ASSISTED_GPS_CONFIGURABLE_LIST);
+        if (!TextUtils.isEmpty(configurableList)) {
+            for (String item : configurableList.split(",")) {
+                if (mccMnc.contains(item)) {
+                    return true;
                 }
             }
         }
+
         return false;
     }
 
@@ -748,9 +756,15 @@ public class GpsLocationProvider implements LocationProviderInterface {
         mBatteryStats = IBatteryStats.Stub.asInterface(ServiceManager.getService(
                 BatteryStats.SERVICE_NAME));
 
+        // Check if we have a legacy GPS HAL
+        mLegacyGpsHAL = mContext.getResources().getBoolean(
+                com.android.internal.R.bool.config_legacyGpsHAL);
+
+        mLastKnownMccMnc = getKnownMccMnc(mContext);
+
         // Load GPS configuration.
         mProperties = new Properties();
-        reloadGpsProperties(mContext, mProperties);
+        reloadGpsProperties(mContext, mProperties, mLastKnownMccMnc);
 
         // Create a GPS net-initiated handler.
         mNIHandler = new GpsNetInitiatedHandler(context,
@@ -1121,7 +1135,8 @@ public class GpsLocationProvider implements LocationProviderInterface {
         }
         if (mSuplServerHost != null
                 && mSuplServerPort > TCP_MIN_PORT
-                && mSuplServerPort <= TCP_MAX_PORT) {
+                && mSuplServerPort <= TCP_MAX_PORT
+                && !mLegacyGpsHAL) {
             native_set_agps_server(AGPS_TYPE_SUPL, mSuplServerHost, mSuplServerPort);
         }
     }
@@ -2127,7 +2142,7 @@ public class GpsLocationProvider implements LocationProviderInterface {
                     type = AGPS_REF_LOCATION_TYPE_GSM_CELLID;
                 }
                 native_agps_set_ref_location_cellid(type, mcc, mnc,
-                        gsm_cell.getLac(), gsm_cell.getCid());
+                        gsm_cell.getLac(), gsm_cell.getPsc(), gsm_cell.getCid());
             } else {
                 Log.e(TAG,"Error getting cell location info.");
             }
@@ -2184,6 +2199,10 @@ public class GpsLocationProvider implements LocationProviderInterface {
                 case UPDATE_LOCATION:
                     handleUpdateLocation((Location)msg.obj);
                     break;
+                case GET_DEFAULT_APN:
+                    mDefaultApn = getDefaultApn();
+                    if (DEBUG) Log.d(TAG,"Observer mDefaultApn=" + mDefaultApn);
+                    break;
             }
             if (msg.arg2 == 1) {
                 // wakelock was taken for this message, release it
@@ -2195,8 +2214,7 @@ public class GpsLocationProvider implements LocationProviderInterface {
     ContentObserver mDefaultApnObserver = new ContentObserver(mHandler) {
         @Override
         public void onChange(boolean selfChange) {
-            mDefaultApn = getDefaultApn();
-            if (DEBUG) Log.d(TAG, "Observer mDefaultApn=" + mDefaultApn);
+            sendMessage(GET_DEFAULT_APN, 0, null);
         }
     };
 
@@ -2382,7 +2400,7 @@ public class GpsLocationProvider implements LocationProviderInterface {
 
     // AGPS ril suport
     private native void native_agps_set_ref_location_cellid(int type, int mcc, int mnc,
-            int lac, int cid);
+            int lac, int psc, int cid);
     private native void native_agps_set_id(int type, String setid);
 
     private native void native_update_network_state(boolean connected, int type,

@@ -399,6 +399,7 @@ public final class PowerManager {
     final Context mContext;
     final IPowerManager mService;
     final Handler mHandler;
+    private final boolean mHasPowerProfilesSupport;
 
     /**
      * {@hide}
@@ -407,6 +408,10 @@ public final class PowerManager {
         mContext = context;
         mService = service;
         mHandler = handler;
+
+        mHasPowerProfilesSupport = !TextUtils.isEmpty(getDefaultPowerProfile()) &&
+                !TextUtils.isEmpty(mContext.getResources().getString(
+                        com.android.internal.R.string.config_perf_profile_prop));
     }
 
     /**
@@ -894,6 +899,22 @@ public final class PowerManager {
     }
 
     /**
+     * Boost the CPU for an application launch.
+     * Requires the {@link android.Manifest.permission#CPU_BOOST} permission.
+     *
+     * @hide
+     */
+    public void launchBoost()
+    {
+        try {
+            if (mService != null) {
+                mService.launchBoost();
+            }
+        } catch (RemoteException e) {
+        }
+    }
+
+    /**
      * Intent that is broadcast when the state of {@link #isPowerSaveMode()} changes.
      * This broadcast is only sent to registered receivers.
      */
@@ -920,9 +941,7 @@ public final class PowerManager {
      * @hide
      */
     public boolean hasPowerProfiles() {
-        return !TextUtils.isEmpty(getDefaultPowerProfile()) &&
-               !TextUtils.isEmpty(mContext.getResources().getString(
-                       com.android.internal.R.string.config_perf_profile_prop));
+        return mHasPowerProfilesSupport;
     }
 
     /**

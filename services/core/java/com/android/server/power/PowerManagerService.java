@@ -369,6 +369,9 @@ public final class PowerManagerService extends SystemService
     // Otherwise the user won't get much screen on time before dimming occurs.
     private float mMaximumScreenDimRatioConfig;
 
+    // Default value for proximity prevent accidental wakeups
+    private boolean mProximityWakeEnabledByDefaultConfig;
+
     // The screen off timeout setting value in milliseconds.
     private int mScreenOffTimeoutSetting;
 
@@ -380,7 +383,7 @@ public final class PowerManagerService extends SystemService
     private int mMaximumScreenOffTimeoutFromDeviceAdmin = Integer.MAX_VALUE;
 
     // The stay on while plugged in setting.
-    // A bitfield of battery conditions under which to make the screen stay on.
+    // 0: Not enabled; 1: debugging over usb; >2: charging.
     private int mStayOnWhilePluggedInSetting;
 
     // True if the device should wake up when plugged or unplugged
@@ -476,6 +479,7 @@ public final class PowerManagerService extends SystemService
     private static native void nativeSetAutoSuspend(boolean enable);
     private static native void nativeSendPowerHint(int hintId, int data);
     private static native void nativeCpuBoost(int duration);
+    private static native void nativeLaunchBoost();
     static native void nativeSetPowerProfile(int profile);
     private boolean mKeyboardVisible = false;
 
@@ -704,6 +708,8 @@ public final class PowerManagerService extends SystemService
                 com.android.internal.R.integer.config_proximityCheckTimeout);
         mProximityWakeSupported = resources.getBoolean(
                 com.android.internal.R.bool.config_proximityCheckOnWake);
+        mProximityWakeEnabledByDefaultConfig = resources.getBoolean(
+                com.android.internal.R.bool.config_proximityCheckOnWakeEnabledByDefault);
         if (mProximityWakeSupported) {
             PowerManager powerManager = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
             mProximityWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
@@ -734,14 +740,14 @@ public final class PowerManagerService extends SystemService
                 Settings.Secure.SLEEP_TIMEOUT, DEFAULT_SLEEP_TIMEOUT,
                 UserHandle.USER_CURRENT);
         mStayOnWhilePluggedInSetting = Settings.Global.getInt(resolver,
-                Settings.Global.STAY_ON_WHILE_PLUGGED_IN, BatteryManager.BATTERY_PLUGGED_AC);
+                Settings.Global.STAY_ON_WHILE_PLUGGED_IN, 0);
         mTheaterModeEnabled = Settings.Global.getInt(mContext.getContentResolver(),
                 Settings.Global.THEATER_MODE_ON, 0) == 1;
         mWakeUpWhenPluggedOrUnpluggedSetting = Settings.Global.getInt(resolver,
                 Settings.Global.WAKE_WHEN_PLUGGED_OR_UNPLUGGED,
                 (mWakeUpWhenPluggedOrUnpluggedConfig ? 1 : 0));
         mProximityWakeEnabled = Settings.System.getInt(resolver,
-                Settings.System.PROXIMITY_ON_WAKE, 0) == 1;
+                Settings.System.PROXIMITY_ON_WAKE, mProximityWakeEnabledByDefaultConfig ? 1 : 0) == 1;
 
         final int oldScreenBrightnessSetting = mScreenBrightnessSetting;
         mScreenBrightnessSetting = Settings.System.getIntForUser(resolver,
@@ -797,6 +803,8 @@ public final class PowerManagerService extends SystemService
             // Turn setting off if powered
             Settings.Global.putInt(mContext.getContentResolver(),
                     Settings.Global.LOW_POWER_MODE, 0);
+            // update performance profile
+            mPerformanceManager.setPowerProfile(PowerManager.PROFILE_BALANCED);
             mLowPowerModeSetting = false;
         }
         final boolean autoLowPowerModeEnabled = !mIsPowered && mAutoLowPowerModeConfigured
@@ -1531,7 +1539,16 @@ public final class PowerManagerService extends SystemService
             final boolean wasStayOn = mStayOn;
             if (mStayOnWhilePluggedInSetting != 0
                     && !isMaximumScreenOffTimeoutFromDeviceAdminEnforcedLocked()) {
-                mStayOn = mBatteryManagerInternal.isPowered(mStayOnWhilePluggedInSetting);
+                switch (mStayOnWhilePluggedInSetting) {
+                    case 1: // Debugging only over usb
+                        mStayOn = ((mPlugType & BatteryManager.BATTERY_PLUGGED_USB) != 0)
+                                && Settings.Global.getInt(mContext.getContentResolver(),
+                                        Settings.Global.ADB_ENABLED, 0) != 0;;
+                        break;
+                    default: // charging
+                        mStayOn = mIsPowered;
+                        break;
+                }
             } else {
                 mStayOn = false;
             }
@@ -1630,35 +1647,43 @@ public final class PowerManagerService extends SystemService
                 final int screenDimDuration = getScreenDimDurationLocked(screenOffTimeout);
 
                 mUserActivitySummary = 0;
-                if (mWakefulness == WAKEFULNESS_AWAKE && mLastUserActivityTime >= mLastWakeTime) {
+                if (mLastUserActivityTime >= mLastWakeTime) {
                     nextTimeout = mLastUserActivityTime
                             + screenOffTimeout - screenDimDuration;
                     if (now < nextTimeout) {
-                        int buttonBrightness, keyboardBrightness;
-                        if (mButtonBrightnessOverrideFromWindowManager >= 0) {
-                            buttonBrightness = mButtonBrightnessOverrideFromWindowManager;
-                            keyboardBrightness = mButtonBrightnessOverrideFromWindowManager;
-                        } else {
-                            buttonBrightness = mButtonBrightness;
-                            keyboardBrightness = mKeyboardBrightness;
-                        }
+                        mUserActivitySummary = USER_ACTIVITY_SCREEN_BRIGHT;
+                        if (mWakefulness == WAKEFULNESS_AWAKE) {
+                            int buttonBrightness, keyboardBrightness;
+                            if (mButtonBrightnessOverrideFromWindowManager >= 0) {
+                                buttonBrightness = mButtonBrightnessOverrideFromWindowManager;
+                                keyboardBrightness = mButtonBrightnessOverrideFromWindowManager;
+                            } else {
+                                buttonBrightness = mButtonBrightness;
+                                keyboardBrightness = mKeyboardBrightness;
+                            }
 
-                        mKeyboardLight.setBrightness(mKeyboardVisible ? keyboardBrightness : 0);
-                        if (mButtonTimeout != 0 && now > mLastUserActivityTime + mButtonTimeout) {
-                             mButtonsLight.setBrightness(0);
-                        } else {
-                            mButtonsLight.setBrightness(buttonBrightness);
-                            if (buttonBrightness != 0 && mButtonTimeout != 0) {
-                                nextTimeout = now + mButtonTimeout;
+                            mKeyboardLight.setBrightness(mKeyboardVisible ?
+                                    keyboardBrightness : 0);
+                            if (mButtonTimeout != 0
+                                    && now > mLastUserActivityTime + mButtonTimeout) {
+                                mButtonsLight.setBrightness(0);
+                            } else {
+                                if (!mProximityPositive) {
+                                    mButtonsLight.setBrightness(buttonBrightness);
+                                    if (buttonBrightness != 0 && mButtonTimeout != 0) {
+                                        nextTimeout = now + mButtonTimeout;
+                                    }
+                                }
                             }
                         }
-                        mUserActivitySummary = USER_ACTIVITY_SCREEN_BRIGHT;
                     } else {
                         nextTimeout = mLastUserActivityTime + screenOffTimeout;
                         if (now < nextTimeout) {
-                            mButtonsLight.setBrightness(0);
-                            mKeyboardLight.setBrightness(0);
                             mUserActivitySummary = USER_ACTIVITY_SCREEN_DIM;
+                            if (mWakefulness == WAKEFULNESS_AWAKE) {
+                                mButtonsLight.setBrightness(0);
+                                mKeyboardLight.setBrightness(0);
+                            }
                         }
                     }
                 }
@@ -1922,7 +1947,7 @@ public final class PowerManagerService extends SystemService
                 }
 
                 // Dream has ended or will be stopped.  Update the power state.
-                if (isItBedTimeYetLocked() && !mDreamsActivatedOnSleepByDefaultConfig) {
+                if (isItBedTimeYetLocked()) {
                     goToSleepNoUpdateLocked(SystemClock.uptimeMillis(),
                             PowerManager.GO_TO_SLEEP_REASON_TIMEOUT, 0, Process.SYSTEM_UID);
                     updatePowerStateLocked();
@@ -2996,6 +3021,12 @@ public final class PowerManagerService extends SystemService
     }
 
     private void cleanupProximity() {
+        synchronized (mProximityWakeLock) {
+            cleanupProximityLocked();
+        }
+    }
+
+    private void cleanupProximityLocked() {
         if (mProximityWakeLock.isHeld()) {
             mProximityWakeLock.release();
         }
@@ -3269,28 +3300,30 @@ public final class PowerManagerService extends SystemService
                 r.run();
                 return;
             }
-            mProximityWakeLock.acquire();
-            mProximityListener = new SensorEventListener() {
-                @Override
-                public void onSensorChanged(SensorEvent event) {
-                    cleanupProximity();
-                    if (!mHandler.hasMessages(MSG_WAKE_UP)) {
-                        Slog.w(TAG, "The proximity sensor took too long, wake event already triggered!");
-                        return;
+            synchronized (mProximityWakeLock) {
+                mProximityWakeLock.acquire();
+                mProximityListener = new SensorEventListener() {
+                    @Override
+                    public void onSensorChanged(SensorEvent event) {
+                        cleanupProximityLocked();
+                        if (!mHandler.hasMessages(MSG_WAKE_UP)) {
+                            Slog.w(TAG, "The proximity sensor took too long, wake event already triggered!");
+                            return;
+                        }
+                        mHandler.removeMessages(MSG_WAKE_UP);
+                        float distance = event.values[0];
+                        if (distance >= PROXIMITY_NEAR_THRESHOLD ||
+                                distance >= mProximitySensor.getMaximumRange()) {
+                            r.run();
+                        }
                     }
-                    mHandler.removeMessages(MSG_WAKE_UP);
-                    float distance = event.values[0];
-                    if (distance >= PROXIMITY_NEAR_THRESHOLD ||
-                            distance >= mProximitySensor.getMaximumRange()) {
-                        r.run();
-                    }
-                }
 
-                @Override
-                public void onAccuracyChanged(Sensor sensor, int accuracy) {}
-            };
-            mSensorManager.registerListener(mProximityListener,
-                   mProximitySensor, SensorManager.SENSOR_DELAY_FASTEST);
+                    @Override
+                    public void onAccuracyChanged(Sensor sensor, int accuracy) {}
+                };
+                mSensorManager.registerListener(mProximityListener,
+                       mProximitySensor, SensorManager.SENSOR_DELAY_FASTEST);
+            }
         }
 
         @Override // Binder call
@@ -3408,6 +3441,19 @@ public final class PowerManagerService extends SystemService
                 }
             } else {
                 Slog.e(TAG, "Invalid boost duration: " + duration);
+            }
+        }
+
+        /**
+         * Boost the CPU for an app launch
+         * @hide
+         */
+        @Override
+        public void launchBoost() {
+            // Don't send boosts if we're in another power profile
+            String profile = mPerformanceManager.getPowerProfile();
+            if (profile == null || profile.equals(PowerManager.PROFILE_BALANCED)) {
+                nativeLaunchBoost();
             }
         }
 

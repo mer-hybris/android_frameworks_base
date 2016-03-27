@@ -17,21 +17,9 @@
      limitations under the License.
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-  <string name="profileNameDefault">デフォルト</string>
-  <string name="profileNameWork">仕事</string>
-  <string name="profileNameHome">自宅</string>
-  <string name="profileNameSilent">サイレント</string>
-  <string name="profileNameNight">夜</string>
-  <string name="profileNameAutomobile">車</string>
-  <string name="profileGroupPhone">電話</string>
-  <string name="profileGroupCalendar">カレンダー</string>
-  <string name="profileGroupGmail">Gmail</string>
-  <string name="profileGroupEmail">メール</string>
-  <string name="profileGroupSMS">SMS</string>
-  <string name="wildcardProfile">その他</string>
-  <string name="profile_none">なし</string>
   <string name="profile_picker_title">プロファイル</string>
   <string name="global_action_choose_profile">プロファイル</string>
+  <string name="profile_none">なし</string>
   <string name="global_action_screenshot">スクリーンショット</string>
   <string name="permlab_receiveProtectedSms">保護されたSMSの受信</string>
   <string name="permdesc_receiveProtectedSms">保護されたSMSの受信をアプリに許可します。</string>
@@ -45,16 +33,14 @@
   <string name="permdesc_readThemesDesc">テーマの読み取りや適用しているテーマの特定をアプリに許可します。</string>
   <string name="permlab_writeThemes">テーマの変更</string>
   <string name="permdesc_writeThemesDesc">新しいテーマの挿入や適用しているテーマの変更をアプリに許可します。</string>
-  <string name="permlab_readPhoneBlacklist">携帯電話のブラックリストの読み取り</string>
-  <string name="permdesc_readPhoneBlacklist">着信やメッセージをブロックしている電話番号に関する情報の読み取りをアプリに許可します。</string>
-  <string name="permlab_changePhoneBlacklist">携帯電話のブラックリストの変更</string>
-  <string name="permdesc_changePhoneBlacklist">着信やメッセージをブロックしている電話番号の変更をアプリに許可します。</string>
+  <string name="permlab_readPhoneBlacklist">携帯電話の着信拒否リストの読み取り</string>
+  <string name="permdesc_readPhoneBlacklist">着信やメッセージを拒否している電話番号に関する情報の読み取りをアプリに許可します。</string>
+  <string name="permlab_changePhoneBlacklist">携帯電話の着信拒否リストの変更</string>
+  <string name="permdesc_changePhoneBlacklist">着信やメッセージを拒否している電話番号の変更をアプリに許可します。</string>
   <string name="permlab_changePrivacyGuardState">プライバシーガードを有効/無効にする</string>
   <string name="permdesc_changePrivacyGuardState">他のアプリでプライバシーガードを有効にするかどうかの変更をアプリに許可します。プライバシーガードを有効にしてアプリを実行すると、そのアプリは連絡先、通話履歴、メッセージなどの個人データにアクセスできなくなります。</string>
   <string name="privacy_guard_notification">プライバシーガードが有効です</string>
   <string name="privacy_guard_notification_detail"><xliff:g id="app">%1$s</xliff:g>は個人データにアクセスできません</string>
-  <string name="permlab_useHardwareFramework">ハードウェアフレームワークの使用</string>
-  <string name="permdesc_useHardwareFramework">CMハードウェアフレームワークへのアクセスをアプリに許可します。</string>
   <string name="permlab_setKeyguardWallpaper">キーガードの壁紙の設定</string>
   <string name="permdesc_setKeyguardWallpaper">ロック画面の壁紙の変更をアプリに許可します。</string>
   <string name="privacy_guard_dialog_title">プライバシーガード</string>
@@ -75,6 +61,10 @@
   <string name="adb_both_active_notification_title">USBとネットワーク経由のADBが有効です</string>
   <string name="adb_active_generic_notification_message">タップしてデバッグを無効にします。</string>
   <string name="usb_choose_notification_title">タップしてUSBオプションを選択します。</string>
+  <string name="adb_active_custom_tile">ADB - <xliff:g id="adb_type" example="USB">%1$s</xliff:g></string>
+  <string name="adb_active_custom_tile_both">USBとネットワーク</string>
+  <string name="adb_active_custom_tile_usb">USB</string>
+  <string name="adb_active_custom_tile_net">ネットワーク</string>
   <string name="permlab_interceptPackageLaunch">アプリの起動の監視</string>
   <string name="permdesc_interceptPackageLaunch">他のアプリの起動を監視することをアプリに許可します</string>
   <string name="app_ops_access_camera">カメラへのアクセス</string>
@@ -144,6 +134,8 @@
   <string name="perf_profile_pwrsv">省電力</string>
   <string name="perf_profile_bal">バランス</string>
   <string name="perf_profile_perf">パフォーマンス</string>
+  <string name="perf_profile_bias_power">効率</string>
+  <string name="perf_profile_bias_perf">クイック</string>
   <string name="theme_install_error_title">テーマをインストールできませんでした</string>
   <string name="theme_install_error_message">%sをインストールできませんでした</string>
   <string name="theme_reset_notification_title">テーマのリセット</string>
@@ -161,16 +153,16 @@
   <string name="sd_progress_erasing">SDカードを消去しています\u2026</string>
   <string name="sd_format_error">SDカードを消去できませんでした。</string>
   <string name="sd_media_bad_removal">SDカードがマウントを解除する前に取り外されました。</string>
-  <string name="sd_media_checking">SDカードを現在確認しています。</string>
+  <string name="sd_media_checking">現在SDカードを確認しています。</string>
   <string name="sd_media_removed">SDカードが取り外されました。</string>
-  <string name="sd_media_shared">SDカードは現在パソコンで使用されています。</string>
+  <string name="sd_media_shared">現在SDカードはパソコンで使用されています。</string>
   <string name="usb_progress_unmounting">USBストレージのマウントを解除しています\u2026</string>
   <string name="usb_progress_erasing">USBストレージを消去しています\u2026</string>
   <string name="usb_format_error">USBストレージを消去できませんでした。</string>
   <string name="usb_media_bad_removal">USBストレージがマウントを解除する前に取り外されました。</string>
-  <string name="usb_media_checking">USBストレージを現在確認しています。</string>
+  <string name="usb_media_checking">現在USBストレージを確認しています。</string>
   <string name="usb_media_removed">USBストレージが取り外されました。</string>
-  <string name="usb_media_shared">USBストレージは現在パソコンで使用されています。</string>
+  <string name="usb_media_shared">現在USBストレージはパソコンで使用されています。</string>
   <string name="sd_ext_media_checking_notification_title">SDカードを準備中</string>
   <string name="sd_ext_media_checking_notification_message">SDカードのエラーを確認しています。</string>
   <string name="sd_ext_media_nofs_notification_title">空のSDカード</string>
@@ -205,5 +197,20 @@
   <string name="live_display_night_summary">夜の設定のみを使用する</string>
   <string name="live_display_outdoor">屋外（日光）</string>
   <string name="live_display_outdoor_summary">屋外の設定のみを使用する</string>
-  <string name="live_display_hint">LiveDisplayは目を疲れにくくし、夜の睡眠を邪魔しません。ここをクリックして試してみてください。</string>
+  <string name="live_display_hint">LiveDisplayは目を疲れにくくし、夜の睡眠を邪魔しません。ここをタップして試してみてください。</string>
+  <string name="lock_to_app_toast_no_navbar">この画面の固定を解除するには、戻るボタンを長押しします。</string>
+  <string name="quick_settings_tile_flashlight_not_title">フラッシュライトはONになっています</string>
+  <string name="quick_settings_tile_flashlight_not_summary">タップして消灯する</string>
+  <string name="storage_sd_dock_card">ホルダーのSDカード</string>
+  <string name="fingerprint_default_name">指紋<xliff:g id="number">%d</xliff:g></string>
+  <string name="permlab_accessFingerprintService">指紋サービスへのアクセス</string>
+  <string name="permdesc_accessFingerprintService">指紋サービスへのアクセスをアプリに許可します。アプリは指紋を追加、削除および認証することができます。</string>
+  <string name="permlab_resetBatteryStats">電池統計情報のリセット</string>
+  <string name="permdesc_resetBatteryStats">現在の電池消費量の低レベルデータをリセットすることをアプリに許可します。</string>
+  <string name="silent_mode_priority">優先順位</string>
+  <string name="silent_mode_none">なし</string>
+  <string name="subscription_change_disabled_wifi_ap">SIMサブスクリプションの変更によってWi-Fiアクセスポイントが無効になりました</string>
+  <string name="notify_turn_wifi_off_title">Wi-FiをOFFにする</string>
+  <string name="permlab_thirdPartyKeyguard">サードパーティのロック画面</string>
+  <string name="permdesc_thirdPartyKeyguard">パスワードのないロック画面として使用されることをアプリに許可します。</string>
 </resources>

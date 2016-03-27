@@ -16,8 +16,6 @@
 
 package com.android.systemui.qs.tiles;
 
-import android.app.Profile;
-import android.app.ProfileManager;
 import android.content.Context;
 import android.content.Intent;
 import android.database.ContentObserver;
@@ -36,6 +34,9 @@ import com.android.systemui.R;
 import com.android.systemui.qs.QSDetailItemsList;
 import com.android.systemui.qs.QSTile;
 import com.android.systemui.statusbar.policy.KeyguardMonitor;
+
+import cyanogenmod.app.Profile;
+import cyanogenmod.app.ProfileManager;
 import cyanogenmod.app.StatusBarPanelCustomTile;
 
 import java.util.ArrayList;
@@ -56,10 +57,15 @@ public class ProfilesTile extends QSTile<QSTile.State> implements KeyguardMonito
 
     public ProfilesTile(Host host) {
         super(host);
-        mProfileManager = (ProfileManager) mContext.getSystemService(Context.PROFILE_SERVICE);
+        mProfileManager = ProfileManager.getInstance(mContext);
         mObserver = new ProfilesObserver(mHandler);
         mKeyguardMonitor = host.getKeyguardMonitor();
         mKeyguardMonitor.addCallback(this);
+    }
+
+    @Override
+    public boolean hasSensitiveData() {
+        return true;
     }
 
     @Override
@@ -86,9 +92,26 @@ public class ProfilesTile extends QSTile<QSTile.State> implements KeyguardMonito
     protected void handleUpdateState(State state, Object arg) {
         state.visible = true;
         state.enabled = !mKeyguardMonitor.isShowing() || !mKeyguardMonitor.isSecure();
-        state.label = profilesEnabled() ? mProfileManager.getActiveProfile().getName()
-                : mContext.getString(R.string.quick_settings_profiles_disabled);
         state.icon = ResourceIcon.get(R.drawable.ic_qs_system_profiles);
+        if (profilesEnabled()) {
+            state.label = mProfileManager.getActiveProfile().getName();
+            state.contentDescription = mContext.getString(
+                    R.string.accessibility_quick_settings_profiles, state.label);
+        } else {
+            state.label = mContext.getString(R.string.quick_settings_profiles_disabled);
+            state.contentDescription = mContext.getString(
+                    R.string.accessibility_quick_settings_profiles_off);
+        }
+    }
+
+    @Override
+    protected String composeChangeAnnouncement() {
+        if (profilesEnabled()) {
+            return mContext.getString(R.string.accessibility_quick_settings_profiles_changed,
+                    mState.label);
+        } else {
+            return mContext.getString(R.string.accessibility_quick_settings_profiles_changed_off);
+        }
     }
 
     private boolean profilesEnabled() {

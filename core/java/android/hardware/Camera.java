@@ -560,14 +560,16 @@ public class Camera {
     private void notifyTorch(boolean inUse) {
         IBinder b = ServiceManager.getService(Context.TORCH_SERVICE);
         ITorchService torchService = ITorchService.Stub.asInterface(b);
-        try {
-            if (inUse) {
-                torchService.onCameraOpened(mTorchToken, mCameraId);
-            } else {
-                torchService.onCameraClosed(mTorchToken, mCameraId);
+        if (torchService != null) {
+            try {
+                if (inUse) {
+                    torchService.onCameraOpened(mTorchToken, mCameraId);
+                } else {
+                    torchService.onCameraClosed(mTorchToken, mCameraId);
+                }
+            } catch (RemoteException e) {
+                // Ignore
             }
-        } catch (RemoteException e) {
-            // Ignore
         }
     }
 
@@ -1644,6 +1646,20 @@ public class Camera {
     private native final boolean _enableShutterSound(boolean enabled);
 
     /**
+     * Send a vendor-specific camera command
+     *
+     * @hide
+     */
+    public final void sendVendorCommand(int cmd, int arg1, int arg2) {
+        if (cmd < 1000) {
+            throw new IllegalArgumentException("Command numbers must be at least 1000");
+        }
+        _sendVendorCommand(cmd, arg1, arg2);
+    }
+
+    private native final void _sendVendorCommand(int cmd, int arg1, int arg2);
+
+    /**
      * Callback interface for zoom changes during a smooth zoom operation.
      *
      * @see #setZoomChangeListener(OnZoomChangeListener)
@@ -2095,6 +2111,15 @@ public class Camera {
         native_setLongshot(enable);
     }
     private native final void native_setLongshot(boolean enable);
+
+    /** @hide
+     * Stop longshot. Available only in ZSL.
+     */
+    public final void stopLongshot()
+    {
+        native_stopLongshot();
+    }
+    private native final void native_stopLongshot();
 
      /** @hide
      * Handles the Touch Co-ordinate.
@@ -4445,7 +4470,7 @@ public class Camera {
         // Example string: "(10000,26623),(10000,30000)". Return null if the
         // passing string is null or the size is 0.
         private ArrayList<int[]> splitRange(String str) {
-            if (str == null || str.charAt(0) != '('
+            if (str == null || str.isEmpty() || str.charAt(0) != '('
                     || str.charAt(str.length() - 1) != ')') {
                 Log.e(TAG, "Invalid range list string=" + str);
                 return null;
@@ -4470,7 +4495,7 @@ public class Camera {
         // Example string: "(-10,-10,0,0,300),(0,0,10,10,700)". Return null if
         // the passing string is null or the size is 0 or (0,0,0,0,0).
         private ArrayList<Area> splitArea(String str) {
-            if (str == null || str.charAt(0) != '('
+            if (str == null || str.isEmpty() || str.charAt(0) != '('
                     || str.charAt(str.length() - 1) != ')') {
                 Log.e(TAG, "Invalid area string=" + str);
                 return null;

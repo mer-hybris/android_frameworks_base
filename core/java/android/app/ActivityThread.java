@@ -1667,16 +1667,18 @@ public final class ActivityThread {
             LoadedApk pkgInfo, Context context, String pkgName) {
         return mResourcesManager.getTopLevelResources(resDir, splitResDirs, overlayDirs, libDirs,
                 displayId, pkgName, overrideConfiguration, pkgInfo.getCompatibilityInfo(), null,
-                context);
+                context, pkgInfo.getApplicationInfo().isThemeable);
     }
 
     /**
      * Creates the top level resources for the given package.
      */
-    Resources getTopLevelThemedResources(String resDir, int displayId, LoadedApk pkgInfo,
+    Resources getTopLevelThemedResources(String resDir, int displayId,
+                                         Configuration overrideConfiguration, LoadedApk pkgInfo,
                                          String pkgName, String themePkgName) {
         return mResourcesManager.getTopLevelThemedResources(resDir, displayId, pkgName,
-                themePkgName, pkgInfo.getCompatibilityInfo(), null);
+                themePkgName, overrideConfiguration, pkgInfo.getCompatibilityInfo(), null,
+                pkgInfo.getApplicationInfo().isThemeable);
     }
 
     final Handler getHandler() {
@@ -4157,7 +4159,9 @@ public final class ActivityThread {
             boolean hasFontConfigChange = ((configDiff & ActivityInfo.CONFIG_THEME_FONT) != 0);
             if (hasLocaleConfigChange || hasFontConfigChange) {
                 Canvas.freeTextLayoutCaches();
-                Typeface.recreateDefaults();
+                if (hasFontConfigChange) {
+                    Typeface.recreateDefaults();
+                }
                 if (DEBUG_CONFIGURATION) Slog.v(TAG, "Cleared TextLayout Caches");
             }
         }
@@ -4317,7 +4321,7 @@ public final class ActivityThread {
                     + DisplayMetrics.DENSITY_DEVICE + " to "
                     + mCurDefaultDisplayDpi);
             DisplayMetrics.DENSITY_DEVICE = mCurDefaultDisplayDpi;
-            Bitmap.setDefaultDensity(DisplayMetrics.DENSITY_DEFAULT);
+            Bitmap.setDefaultDensity(DisplayMetrics.DENSITY_DEVICE);
         }
     }
 
@@ -4411,7 +4415,8 @@ public final class ActivityThread {
         }
 
 
-        final boolean is24Hr = "24".equals(mCoreSettings.getString(Settings.System.TIME_12_24));
+        final boolean is24Hr = android.text.format.DateFormat.is24HourFormat(
+            mCoreSettings.getString(Settings.System.TIME_12_24), data.config.locale);
         DateFormat.set24HourTimePref(is24Hr);
 
         View.mDebugViewAttributes =

@@ -175,6 +175,7 @@ import android.os.FactoryTest;
 import android.os.FileObserver;
 import android.os.FileUtils;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.IPermissionController;
 import android.os.IProcessInfoService;
@@ -386,6 +387,10 @@ public final class ActivityManagerService extends ActivityManagerNative
 
     // Delay in notifying task stack change listeners (in millis)
     static final int NOTIFY_TASK_STACK_CHANGE_LISTENERS_DELAY = 1000;
+
+    // Necessary ApplicationInfo flags to mark an app as persistent
+    private static final int PERSISTENT_MASK =
+            ApplicationInfo.FLAG_SYSTEM|ApplicationInfo.FLAG_PERSISTENT;
 
     /** All system services */
     SystemServiceManager mSystemServiceManager;
@@ -1155,12 +1160,6 @@ public final class ActivityManagerService extends ActivityManagerNative
             = new ArrayList<ProcessChangeItem>();
 
     /**
-     * Runtime CPU use collection thread.  This object's lock is used to
-     * perform synchronization with the thread (notifying it to run).
-     */
-    final Thread mProcessCpuThread;
-
-    /**
      * Used to collect per-process CPU use for ANRs, battery stats, etc.
      * Must acquire this object's lock when accessing it.
      * NOTE: this lock will be held while doing long operations (trawling
@@ -1301,6 +1300,7 @@ public final class ActivityManagerService extends ActivityManagerNative
     final ServiceThread mHandlerThread;
     final MainHandler mHandler;
     final UiHandler mUiHandler;
+    final CpuTrackerHandler mCpuTrackerHandler;
 
     final class UiHandler extends Handler {
         public UiHandler() {
@@ -1893,6 +1893,47 @@ public final class ActivityManagerService extends ActivityManagerNative
         }
     };
 
+    static final int SCHEDULE_CPU_STATS_MSG = 1;
+    static final int UPDATE_CPU_STATS_MSG = 2;
+
+    final class CpuTrackerHandler extends Handler {
+        public CpuTrackerHandler(Looper looper) {
+            super(looper);
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+            case SCHEDULE_CPU_STATS_MSG: {
+                final long now = SystemClock.uptimeMillis();
+                long nextCpuDelay = (mLastCpuTime.get() + MONITOR_CPU_MAX_TIME) - now;
+                long nextWriteDelay = (mLastWriteTime + BATTERY_STATS_TIME) - now;
+                //Slog.i(TAG, "Cpu delay=" + nextCpuDelay + ", write delay=" + nextWriteDelay);
+                if (nextWriteDelay < nextCpuDelay) {
+                    nextCpuDelay = nextWriteDelay;
+                }
+                if (nextCpuDelay > 0) {
+                    mProcessCpuMutexFree.set(true);
+                    sendEmptyMessageDelayed(UPDATE_CPU_STATS_MSG, nextCpuDelay);
+                }
+            } break;
+            case UPDATE_CPU_STATS_MSG: {
+                updateCpuStatsNow();
+                schedule();
+            } break;
+            }
+        }
+
+        void schedule() {
+            sendEmptyMessage(SCHEDULE_CPU_STATS_MSG);
+        }
+
+        void updateNow() {
+            removeMessages(UPDATE_CPU_STATS_MSG);
+            sendEmptyMessage(UPDATE_CPU_STATS_MSG);
+        }
+    }
+
     static final int COLLECT_PSS_BG_MSG = 1;
 
     final Handler mBgHandler = new Handler(BackgroundThread.getHandler().getLooper()) {
@@ -2151,6 +2192,9 @@ public final class ActivityManagerService extends ActivityManagerNative
         mHandlerThread.start();
         mHandler = new MainHandler(mHandlerThread.getLooper());
         mUiHandler = new UiHandler();
+        HandlerThread cpuTrackerThread = new HandlerThread("CpuTracker");
+        cpuTrackerThread.start();
+        mCpuTrackerHandler = new CpuTrackerHandler(cpuTrackerThread.getLooper());
 
         mFgBroadcastQueue = new BroadcastQueue(this, mHandler,
                 "foreground", BROADCAST_FG_TIMEOUT, false);
@@ -2166,7 +2210,7 @@ public final class ActivityManagerService extends ActivityManagerNative
         File dataDir = Environment.getDataDirectory();
         File systemDir = new File(dataDir, "system");
         systemDir.mkdirs();
-        mBatteryStatsService = new BatteryStatsService(systemDir, mHandler);
+        mBatteryStatsService = new BatteryStatsService(systemDir, mCpuTrackerHandler);
         mBatteryStatsService.getActiveStatistics().readLocked();
         mBatteryStatsService.getActiveStatistics().writeAsyncLocked();
         mOnBattery = DEBUG_POWER ? true
@@ -2200,36 +2244,6 @@ public final class ActivityManagerService extends ActivityManagerNative
         mStackSupervisor = new ActivityStackSupervisor(this);
         mTaskPersister = new TaskPersister(systemDir, mStackSupervisor);
 
-        mProcessCpuThread = new Thread("CpuTracker") {
-            @Override
-            public void run() {
-                while (true) {
-                    try {
-                        try {
-                            synchronized(this) {
-                                final long now = SystemClock.uptimeMillis();
-                                long nextCpuDelay = (mLastCpuTime.get()+MONITOR_CPU_MAX_TIME)-now;
-                                long nextWriteDelay = (mLastWriteTime+BATTERY_STATS_TIME)-now;
-                                //Slog.i(TAG, "Cpu delay=" + nextCpuDelay
-                                //        + ", write delay=" + nextWriteDelay);
-                                if (nextWriteDelay < nextCpuDelay) {
-                                    nextCpuDelay = nextWriteDelay;
-                                }
-                                if (nextCpuDelay > 0) {
-                                    mProcessCpuMutexFree.set(true);
-                                    this.wait(nextCpuDelay);
-                                }
-                            }
-                        } catch (InterruptedException e) {
-                        }
-                        updateCpuStatsNow();
-                    } catch (Exception e) {
-                        Slog.e(TAG, "Unexpected exception collecting process stats", e);
-                    }
-                }
-            }
-        };
-
         Watchdog.getInstance().addMonitor(this);
         Watchdog.getInstance().addThread(mHandler);
     }
@@ -2244,7 +2258,7 @@ public final class ActivityManagerService extends ActivityManagerNative
 
     private void start() {
         Process.removeAllProcessGroups();
-        mProcessCpuThread.start();
+        mCpuTrackerHandler.schedule();
 
         mBatteryStatsService.publish(mContext);
         mAppOpsService.publish(mContext);
@@ -2305,9 +2319,7 @@ public final class ActivityManagerService extends ActivityManagerNative
             return;
         }
         if (mProcessCpuMutexFree.compareAndSet(true, false)) {
-            synchronized (mProcessCpuThread) {
-                mProcessCpuThread.notify();
-            }
+            mCpuTrackerHandler.updateNow();
         }
     }
 
@@ -2787,9 +2799,14 @@ public final class ActivityManagerService extends ActivityManagerNative
             // should never happen).
             SparseArray<ProcessRecord> procs = mProcessNames.getMap().get(processName);
             if (procs == null) return null;
-            final int N = procs.size();
-            for (int i = 0; i < N; i++) {
-                if (UserHandle.isSameUser(procs.keyAt(i), uid)) return procs.valueAt(i);
+            final int procCount = procs.size();
+            for (int i = 0; i < procCount; i++) {
+                final int procUid = procs.keyAt(i);
+                if (UserHandle.isApp(procUid) || !UserHandle.isSameUser(procUid, uid)) {
+                    // Don't use an app process or different user process for system component.
+                    continue;
+                }
+                return procs.valueAt(i);
             }
         }
         ProcessRecord proc = mProcessNames.get(processName, uid);
@@ -3503,7 +3520,8 @@ public final class ActivityManagerService extends ActivityManagerNative
             if (sourceRecord == null) {
                 throw new SecurityException("Called with bad activity token: " + resultTo);
             }
-            if (!sourceRecord.info.packageName.equals("android")) {
+            if (!sourceRecord.info.packageName.equals("android") &&
+                    !sourceRecord.info.packageName.equals("org.cyanogenmod.resolver")) {
                 throw new SecurityException(
                         "Must be called from an activity that is declared in the android package");
             }
@@ -4172,6 +4190,7 @@ public final class ActivityManagerService extends ActivityManagerNative
         if (task.inRecents) {
             int taskIndex = mRecentTasks.indexOf(task);
             if (taskIndex >= 0) {
+                trimRecentBitmaps();
                 if (!isAffiliated) {
                     // Simple case: this is not an affiliated task, so we just move it to the front.
                     mRecentTasks.remove(taskIndex);
@@ -4261,6 +4280,16 @@ public final class ActivityManagerService extends ActivityManagerNative
         if (needAffiliationFix) {
             if (DEBUG_RECENTS) Slog.d(TAG, "addRecent: regrouping affiliations");
             cleanupRecentTasksLocked(task.userId);
+        }
+    }
+
+    void trimRecentBitmaps() {
+        int N = mRecentTasks.size();
+        for (int i = 0; i < N; i++) {
+            final TaskRecord tr = mRecentTasks.get(i);
+            if (i > MAX_RECENT_BITMAPS) {
+                tr.freeLastThumbnail();
+            }
         }
     }
 
@@ -8312,7 +8341,7 @@ public final class ActivityManagerService extends ActivityManagerNative
         }
         if (!allowed) {
             Slog.w(TAG, caller + ": caller " + callingUid
-                    + " does not hold GET_TASKS; limiting output");
+                    + " does not hold REAL_GET_TASKS; limiting output");
         }
         return allowed;
     }
@@ -10063,10 +10092,10 @@ public final class ActivityManagerService extends ActivityManagerNative
         String proc = customProcess != null ? customProcess : info.processName;
         BatteryStatsImpl.Uid.Proc ps = null;
         BatteryStatsImpl stats = mBatteryStatsService.getActiveStatistics();
+        final int userId = UserHandle.getUserId(info.uid);
         int uid = info.uid;
         if (isolated) {
             if (isolatedUid == 0) {
-                int userId = UserHandle.getUserId(uid);
                 int stepsLeft = Process.LAST_ISOLATED_UID - Process.FIRST_ISOLATED_UID + 1;
                 while (true) {
                     if (mNextIsolatedProcessUid < Process.FIRST_ISOLATED_UID
@@ -10090,7 +10119,13 @@ public final class ActivityManagerService extends ActivityManagerNative
                 uid = isolatedUid;
             }
         }
-        return new ProcessRecord(stats, info, proc, uid);
+        final ProcessRecord r = new ProcessRecord(stats, info, proc, uid);
+        if (!mBooted && !mBooting
+                && userId == UserHandle.USER_OWNER
+                && (info.flags & PERSISTENT_MASK) == PERSISTENT_MASK) {
+            r.persistent = true;
+        }
+        return r;
     }
 
     final ProcessRecord addAppLocked(ApplicationInfo info, boolean isolated,
@@ -10122,8 +10157,7 @@ public final class ActivityManagerService extends ActivityManagerNative
                     + info.packageName + ": " + e);
         }
 
-        if ((info.flags&(ApplicationInfo.FLAG_SYSTEM|ApplicationInfo.FLAG_PERSISTENT))
-                == (ApplicationInfo.FLAG_SYSTEM|ApplicationInfo.FLAG_PERSISTENT)) {
+        if ((info.flags & PERSISTENT_MASK) == PERSISTENT_MASK) {
             app.persistent = true;
 
             // The Adj score defines an order of processes to be killed.
@@ -10623,9 +10657,15 @@ public final class ActivityManagerService extends ActivityManagerNative
                     return true;
                 }
             }
+            final int anrPid = proc.pid;
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
+                    if (anrPid != proc.pid) {
+                        Slog.i(TAG, "Ignoring stale ANR (occurred in " + anrPid +
+                                    ", but current pid is " + proc.pid + ")");
+                        return;
+                    }
                     appNotResponding(proc, activity, parent, aboveSystem, annotation);
                 }
             });
@@ -12496,16 +12536,26 @@ public final class ActivityManagerService extends ActivityManagerNative
 
     public List<ActivityManager.RunningAppProcessInfo> getRunningAppProcesses() {
         enforceNotIsolatedCaller("getRunningAppProcesses");
+
+        final int callingUid = Binder.getCallingUid();
+
         // Lazy instantiation of list
         List<ActivityManager.RunningAppProcessInfo> runList = null;
         final boolean allUsers = ActivityManager.checkUidPermission(INTERACT_ACROSS_USERS_FULL,
-                Binder.getCallingUid()) == PackageManager.PERMISSION_GRANTED;
-        int userId = UserHandle.getUserId(Binder.getCallingUid());
+                callingUid) == PackageManager.PERMISSION_GRANTED;
+        final int userId = UserHandle.getUserId(callingUid);
+        final boolean allUids = isGetTasksAllowed(
+                "getRunningAppProcesses", Binder.getCallingPid(), callingUid);
+
         synchronized (this) {
             // Iterate across all processes
-            for (int i=mLruProcesses.size()-1; i>=0; i--) {
+            for (int i = mLruProcesses.size() - 1; i >= 0; i--) {
                 ProcessRecord app = mLruProcesses.get(i);
-                if (!allUsers && app.userId != userId) {
+                if ((!allUsers && app.userId != userId)
+                        || (!allUids && app.uid != callingUid)) {
+                    continue;
+                }
+                if (app.processName.equals("system")) {
                     continue;
                 }
                 if ((app.thread != null) && (!app.crashing && !app.notResponding)) {
@@ -12529,7 +12579,7 @@ public final class ActivityManagerService extends ActivityManagerNative
                     //Slog.v(TAG, "Proc " + app.processName + ": imp=" + currApp.importance
                     //        + " lru=" + currApp.lru);
                     if (runList == null) {
-                        runList = new ArrayList<ActivityManager.RunningAppProcessInfo>();
+                        runList = new ArrayList<>();
                     }
                     runList.add(currApp);
                 }
@@ -16995,6 +17045,10 @@ public final class ActivityManagerService extends ActivityManagerNative
                         null, AppOpsManager.OP_NONE, false, false, MY_PID,
                         Process.SYSTEM_UID, UserHandle.USER_ALL);
                 if ((changes&ActivityInfo.CONFIG_LOCALE) != 0) {
+                    // if locale changed, time format may have changed
+                    final int is24Hour = android.text.format.DateFormat.is24HourFormat(mContext) ? 1 : 0;
+                    mHandler.sendMessage(mHandler.obtainMessage(UPDATE_TIME, is24Hour, 0));
+                    // now send general broadcast
                     intent = new Intent(Intent.ACTION_LOCALE_CHANGED);
                     intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
                     broadcastIntentLocked(null, null, intent,
@@ -18507,7 +18561,8 @@ public final class ActivityManagerService extends ActivityManagerNative
         int numBServices = 0;
         for (int i=N-1; i>=0; i--) {
             ProcessRecord app = mLruProcesses.get(i);
-            if (ProcessList.ENABLE_B_SERVICE_PROPAGATION && app.serviceb) {
+            if (ProcessList.ENABLE_B_SERVICE_PROPAGATION && app.serviceb
+                    && (app.curAdj==ProcessList.SERVICE_B_ADJ)) {
                 numBServices++;
                 for (int s=app.services.size()-1; s>=0; s--) {
                     ServiceRecord sr = app.services.valueAt(s);

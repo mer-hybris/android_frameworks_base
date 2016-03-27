@@ -69,6 +69,7 @@ import android.hardware.display.DisplayManagerGlobal;
 import android.hardware.display.VirtualDisplay;
 import android.hardware.input.InputManager;
 import android.hardware.input.InputManagerInternal;
+import android.net.Uri;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.Debug;
@@ -1351,7 +1352,7 @@ public final class ActivityStackSupervisor implements DisplayListener {
                                     container.mActivityDisplay.mDisplayId)));
             Trace.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER , "startActivityLocked");
             /* Acquire perf lock during new app launch */
-            mPm.cpuBoost(2000 * 1000);
+            mPm.launchBoost();
             Trace.traceEnd(Trace.TRACE_TAG_ACTIVITY_MANAGER);
         }
 
@@ -1402,6 +1403,11 @@ public final class ActivityStackSupervisor implements DisplayListener {
         if (err == ActivityManager.START_SUCCESS && intent.getComponent() == null) {
             // We couldn't find a class that can handle the given Intent.
             // That's the end of that!
+            final Uri data = intent.getData();
+            final String strData = data != null ? data.toSafeString() : null;
+            EventLog.writeEvent(EventLogTags.AM_INTENT_NOT_RESOLVED, callingPackage,
+                    intent.getAction(), intent.getType(), strData, intent.getFlags());
+
             err = ActivityManager.START_INTENT_NOT_RESOLVED;
         }
 
@@ -2539,6 +2545,12 @@ public final class ActivityStackSupervisor implements DisplayListener {
     }
 
     void findTaskToMoveToFrontLocked(TaskRecord task, int flags, Bundle options, String reason) {
+        ActivityRecord top = task.stack.topRunningActivityLocked(null);
+        /* App is launching from recent apps and it's a new process */
+        if(top != null && top.state == ActivityState.DESTROYED) {
+            mPm.launchBoost();
+        }
+
         if ((flags & ActivityManager.MOVE_TASK_NO_USER_ACTION) == 0) {
             mUserLeaving = true;
         }
@@ -2732,15 +2744,14 @@ public final class ActivityStackSupervisor implements DisplayListener {
                 }
                 final ActivityRecord ar = stack.findTaskLocked(r);
                 if (ar != null) {
-                    BinderInternal.modifyDelayedGcParams();
+                    if (ar.state == ActivityState.DESTROYED) {
+                        mPm.launchBoost();
+                    }
                     return ar;
                 }
             }
         }
-        /* Delay Binder Explicit GC during application launch */
-        BinderInternal.modifyDelayedGcParams();
-
-        mPm.cpuBoost(2000 * 1000);
+        mPm.launchBoost();
 
         /* Delay Binder Explicit GC during application launch */
         BinderInternal.modifyDelayedGcParams();

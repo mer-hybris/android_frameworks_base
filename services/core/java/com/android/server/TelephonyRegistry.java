@@ -619,11 +619,21 @@ class TelephonyRegistry extends ITelephonyRegistry.Stub {
         synchronized (mRecords) {
             final int recordCount = mRecords.size();
             for (int i = 0; i < recordCount; i++) {
-                if (mRecords.get(i).binder == binder) {
+                Record r = mRecords.get(i);
+                if (r.binder == binder) {
                     if (DBG) {
-                        Record r = mRecords.get(i);
                         log("remove: binder=" + binder + "r.pkgForDebug" + r.pkgForDebug
                                 + "r.callback" + r.callback);
+                    }
+                    try {
+                        if (r.callback != null) {
+                            r.callback.onUnregistered();
+                        }
+                        if (r.onSubscriptionsChangedListenerCallback != null) {
+                            r.onSubscriptionsChangedListenerCallback.onUnregistered();
+                        }
+                    } catch (RemoteException ex) {
+                        // ignored, we'll remove it anyway
                     }
                     mRecords.remove(i);
                     return;
@@ -687,10 +697,6 @@ class TelephonyRegistry extends ITelephonyRegistry.Stub {
         }
         broadcastCallStateChanged(state, incomingNumber, subId);
     }
-
-     public void notifyServiceState(ServiceState state) {
-         notifyServiceStateForPhoneId(mDefaultPhoneId, mDefaultSubId, state);
-     }
 
     public void notifyServiceStateForPhoneId(int phoneId, int subId, ServiceState state) {
         if (!checkNotifyPermission("notifyServiceState()")){
@@ -859,17 +865,13 @@ class TelephonyRegistry extends ITelephonyRegistry.Stub {
         }
     }
 
-    public void notifyMessageWaitingChanged(boolean mwi) {
-        notifyMessageWaitingChangedForPhoneId(mDefaultPhoneId, mDefaultSubId, mwi);
-    }
-
     public void notifyMessageWaitingChangedForPhoneId(int phoneId, int subId, boolean mwi) {
         if (!checkNotifyPermission("notifyMessageWaitingChanged()")) {
             return;
         }
         if (VDBG) {
-            log("notifyMessageWaitingChangedForPhoneId: phoneId = " + phoneId
-                + "subId=" + subId + " mwi=" + mwi);
+            log("notifyMessageWaitingChangedForSubscriberPhoneID: subId=" + phoneId
+                + " mwi=" + mwi);
         }
         synchronized (mRecords) {
             if (validatePhoneId(phoneId)) {

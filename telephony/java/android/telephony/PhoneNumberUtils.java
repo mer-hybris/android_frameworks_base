@@ -16,6 +16,7 @@
 
 package android.telephony;
 
+import android.util.SparseArray;
 import com.android.i18n.phonenumbers.NumberParseException;
 import com.android.i18n.phonenumbers.PhoneNumberUtil;
 import com.android.i18n.phonenumbers.PhoneNumberUtil.PhoneNumberFormat;
@@ -141,6 +142,55 @@ public class PhoneNumberUtils
     /** Returns true if ch is not dialable or alpha char */
     private static boolean isSeparator(char ch) {
         return !isDialable(ch) && !(('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z'));
+    }
+
+    /**
+     * On some CDMA networks +COUNTRYCODE must be rewritten to 0 when making a local
+     * call from within the user's home network.  We maintain a white list of
+     * (country code prefix) -> (rewrite rule) to perform this substitution.
+     *
+     * Since country codes are variable length it is easiest to compile a regex
+     */
+    private static SparseArray<RewriteRule> sCdmaLocalRewriteWhitelist;
+    private static Pattern sCdmaLocalRewritePattern;
+    static {
+        sCdmaLocalRewriteWhitelist = new SparseArray<RewriteRule>();
+        addRewriteRule(62, "ID", "0"); // indonesia
+        addRewriteRule(380, "UA", "0"); // ukraine
+
+        StringBuffer regex = new StringBuffer();
+        regex.append("[+](");
+        for (int i=0; i < sCdmaLocalRewriteWhitelist.size(); ++i) {
+            int countryCode = sCdmaLocalRewriteWhitelist.keyAt(i);
+            if (i > 0) {
+                regex.append("|");
+            }
+            regex.append(countryCode);
+        }
+        regex.append(")");
+        sCdmaLocalRewritePattern = Pattern.compile(regex.toString());
+    }
+
+    private static class RewriteRule {
+        public int countryCodePrefix;
+        public String isoCountryCode;
+        public String replacement;
+
+        public RewriteRule(int countryCodePrefix, String isoCountryCode, String replacement) {
+            this.countryCodePrefix = countryCodePrefix;
+            this.isoCountryCode = isoCountryCode;
+            this.replacement = replacement;
+        }
+
+        public String apply(String dialStr) {
+            return dialStr.replaceFirst("[+]" + countryCodePrefix, replacement);
+        }
+    }
+
+    private static void addRewriteRule(int countryCodePrefix,
+                                       String isoCountryCode, String replacement) {
+        sCdmaLocalRewriteWhitelist.put(countryCodePrefix,
+                new RewriteRule(countryCodePrefix, isoCountryCode, replacement));
     }
 
     /** Extracts the phone number from an Intent.
@@ -1851,11 +1901,13 @@ public class PhoneNumberUtils
                 // It is not possible to append additional digits to an emergency number to dial
                 // the number in Brazil - it won't connect.
                 if (useExactMatch || "BR".equalsIgnoreCase(defaultCountryIso)) {
-                    if (number.equals(emergencyNum)) {
+                    if (number.equals(emergencyNum) &&
+                        isEmergencyNumberForCurrentIso(number, defaultCountryIso)) {
                         return true;
                     }
                 } else {
-                    if (number.startsWith(emergencyNum)) {
+                    if (number.startsWith(emergencyNum) &&
+                        isEmergencyNumberForCurrentIso(number, defaultCountryIso)) {
                         return true;
                     }
                 }
@@ -1895,6 +1947,33 @@ public class PhoneNumberUtils
         }
 
         return false;
+    }
+
+   /**
+    * When checking for ECC numbers the country (defaultCountryIso) passed in is not taken into
+    * consideration by the function isEmergencyNumberInternal(subId, number, defaultCountryIso,
+    * useExactMatchecclist) this causes the function to return TRUE even in the case when the
+    * number is not emergency for defaultCountryIso but the device is in a country where the
+    * ecclist list has been updated with the current country's ECC #s. For example if device is
+    * in INDIA and we are checking for (XYZ, am, 101, XYZ) it will return true since 101
+    * will be found in ecclist but 101 is not valid ECC# for Armenia(am).
+    */
+    private static boolean isEmergencyNumberForCurrentIso(String number, String country) {
+        Rlog.w(LOG_TAG, "isEmergencyNumberForCurrentIso: number=" + number + " country=" + country);
+
+        boolean isEmergency = true;
+
+        //TODO - create a XML file that is in the format of string, [numbers ....]. This way
+        //we can overlay for a particular device. If XML is not found then function can return
+        //true always, else we will check the XML against passed country and number.
+        if( !("IN".equalsIgnoreCase(country)) ) {
+            if( number.equals("101") | number.equals("102") ) {
+                Rlog.w(LOG_TAG, "Number and Country doesn't match for emergency number");
+                isEmergency = false;
+            }
+        }
+
+        return isEmergency;
     }
 
     /**
@@ -2460,6 +2539,29 @@ public class PhoneNumberUtils
     }
 
     /**
+     * Returns a rewrite rule for the country code prefix if the dial string matches the
+     * whitelist and the user is in their home network
+     *
+     * @param dialStr number being dialed
+     * @param currIso ISO code of currently attached network
+     * @param defaultIso ISO code of user's sim
+     * @return RewriteRule or null if conditions fail
+     */
+    private static RewriteRule getCdmaLocalRewriteRule(String dialStr,
+                                                       String currIso, String defaultIso) {
+        Matcher m = sCdmaLocalRewritePattern.matcher(dialStr);
+        if (m.find()) {
+            String dialPrefix = m.group(1);
+            RewriteRule rule = sCdmaLocalRewriteWhitelist.get(Integer.valueOf(dialPrefix));
+            if (currIso.equalsIgnoreCase(defaultIso) &&
+                    currIso.equalsIgnoreCase(rule.isoCountryCode)) {
+                return rule;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Determines if the specified number is actually a URI
      * (i.e. a SIP address) rather than a regular PSTN phone number,
      * based on whether or not the number contains an "@" character.
@@ -2522,8 +2624,16 @@ public class PhoneNumberUtils
                 // Remove the leading plus sign
                 retStr = newStr;
             } else {
-                // Replaces the plus sign with the default IDP
-                retStr = networkDialStr.replaceFirst("[+]", getCurrentIdp(useNanp));
+                RewriteRule rewriteRule =
+                        getCdmaLocalRewriteRule(networkDialStr,
+                                TelephonyManager.getDefault().getNetworkCountryIso(),
+                                TelephonyManager.getDefault().getSimCountryIso());
+                if (rewriteRule != null) {
+                    retStr = rewriteRule.apply(networkDialStr);
+                } else {
+                    // Replaces the plus sign with the default IDP
+                    retStr = networkDialStr.replaceFirst("[+]", getCurrentIdp(useNanp));
+                }
             }
         }
         if (DBG) log("processPlusCode, retStr=" + retStr);

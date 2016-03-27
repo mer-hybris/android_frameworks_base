@@ -23,6 +23,7 @@ import android.animation.ValueAnimator;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.content.res.Resources;
+import android.os.PowerManager;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -79,6 +80,8 @@ public abstract class PanelView extends FrameLayout {
     private VelocityTrackerInterface mVelocityTracker;
     private FlingAnimationUtils mFlingAnimationUtils;
 
+    private final PowerManager mPm;
+
     /**
      * Whether an instant expand request is currently pending and we are just waiting for layout.
      */
@@ -106,6 +109,18 @@ public abstract class PanelView extends FrameLayout {
         public void run() {
             mPeekPending = false;
             runPeekAnimation();
+        }
+    };
+
+    private ViewTreeObserver.OnGlobalLayoutListener mInstantExpandLayoutListener =
+            new ViewTreeObserver.OnGlobalLayoutListener() {
+        @Override
+        public void onGlobalLayout() {
+            if (mStatusBar.getStatusBarWindow().getHeight() != mStatusBar.getStatusBarHeight()) {
+                getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                setExpandedFraction(1f);
+                mInstantExpanding = false;
+            }
         }
     };
 
@@ -182,6 +197,8 @@ public abstract class PanelView extends FrameLayout {
         mLinearOutSlowInInterpolator =
                 AnimationUtils.loadInterpolator(context, android.R.interpolator.linear_out_slow_in);
         mBounceInterpolator = new BounceInterpolator();
+
+        mPm = (PowerManager)context.getSystemService(Context.POWER_SERVICE);
     }
 
     protected void loadDimens() {
@@ -573,6 +590,9 @@ public abstract class PanelView extends FrameLayout {
                         (animator.getDuration() * getCannedFlingDurationFactor()));
             }
         }
+
+        mPm.cpuBoost((int)animator.getDuration() * 1000);
+
         animator.addListener(new AnimatorListenerAdapter() {
             private boolean mCancelled;
 
@@ -783,18 +803,7 @@ public abstract class PanelView extends FrameLayout {
 
         // Wait for window manager to pickup the change, so we know the maximum height of the panel
         // then.
-        getViewTreeObserver().addOnGlobalLayoutListener(
-                new ViewTreeObserver.OnGlobalLayoutListener() {
-                    @Override
-                    public void onGlobalLayout() {
-                        if (mStatusBar.getStatusBarWindow().getHeight()
-                                != mStatusBar.getStatusBarHeight()) {
-                            getViewTreeObserver().removeOnGlobalLayoutListener(this);
-                            setExpandedFraction(1f);
-                            mInstantExpanding = false;
-                        }
-                    }
-                });
+        getViewTreeObserver().addOnGlobalLayoutListener(mInstantExpandLayoutListener);
 
         // Make sure a layout really happens.
         requestLayout();
@@ -803,6 +812,7 @@ public abstract class PanelView extends FrameLayout {
     public void instantCollapse() {
         abortAnimations();
         setExpandedFraction(0f);
+        getViewTreeObserver().removeOnGlobalLayoutListener(mInstantExpandLayoutListener);
         if (mExpanding) {
             notifyExpandingFinished();
         }
@@ -820,8 +830,12 @@ public abstract class PanelView extends FrameLayout {
     }
 
 
-    protected void startUnlockHintAnimation() {
 
+    protected void startUnlockHintAnimation() {
+        startHintAnimation(false);
+    }
+
+    protected void startHintAnimation(boolean isFingerprintHint) {
         // We don't need to hint the user if an animation is already running or the user is changing
         // the expansion.
         if (mHeightAnimator != null || mTracking) {
@@ -837,7 +851,11 @@ public abstract class PanelView extends FrameLayout {
                 mHintAnimationRunning = false;
             }
         });
-        mStatusBar.onUnlockHintStarted();
+        if (isFingerprintHint) {
+            mStatusBar.onFingerprintHintStarted();
+        } else {
+            mStatusBar.onUnlockHintStarted();
+        }
         mHintAnimationRunning = true;
     }
 
@@ -845,7 +863,6 @@ public abstract class PanelView extends FrameLayout {
      * Phase 1: Move everything upwards.
      */
     private void startUnlockHintAnimationPhase1(final Runnable onAnimationFinished) {
-        mStatusBar.requestVisualizer(false, 0);
         float target = Math.max(0, getMaxPanelHeight() - mHintDistance);
         ValueAnimator animator = createHeightAnimator(target);
         animator.setDuration(250);
@@ -863,7 +880,6 @@ public abstract class PanelView extends FrameLayout {
                 if (mCancelled) {
                     mHeightAnimator = null;
                     onAnimationFinished.run();
-                    mStatusBar.requestVisualizer(true, 250);
                 } else {
                     startUnlockHintAnimationPhase2(onAnimationFinished);
                 }
@@ -900,7 +916,6 @@ public abstract class PanelView extends FrameLayout {
             public void onAnimationEnd(Animator animation) {
                 mHeightAnimator = null;
                 onAnimationFinished.run();
-                mStatusBar.requestVisualizer(true, 200);
             }
         });
         animator.start();

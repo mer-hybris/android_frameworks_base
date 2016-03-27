@@ -42,6 +42,7 @@ public class UnlockMethodCache {
     private boolean mCurrentlyInsecure;
     private boolean mTrustManaged;
     private boolean mFaceUnlockRunning;
+    private boolean mFingerUnlockRunning;
 
     private UnlockMethodCache(Context ctx) {
         mLockPatternUtils = new LockPatternUtils(ctx);
@@ -86,13 +87,17 @@ public class UnlockMethodCache {
         boolean trustManaged = mKeyguardUpdateMonitor.getUserTrustIsManaged(user);
         boolean faceUnlockRunning = mKeyguardUpdateMonitor.isFaceUnlockRunning(user)
                 && trustManaged;
+        boolean fingerUnlockRunning = mLockPatternUtils.usingFingerprint(user);
+
         boolean changed = secure != mSecure || currentlyInsecure != mCurrentlyInsecure ||
-                trustManaged != mTrustManaged  || faceUnlockRunning != mFaceUnlockRunning;
+                trustManaged != mTrustManaged  || faceUnlockRunning != mFaceUnlockRunning ||
+                fingerUnlockRunning != mFingerUnlockRunning;
         if (changed || updateAlways) {
             mSecure = secure;
             mCurrentlyInsecure = currentlyInsecure;
             mTrustManaged = trustManaged;
             mFaceUnlockRunning = faceUnlockRunning;
+            mFingerUnlockRunning = fingerUnlockRunning;
             notifyListeners();
         }
     }
@@ -133,6 +138,18 @@ public class UnlockMethodCache {
         public void onFaceUnlockStateChanged(boolean running, int userId) {
             update(false /* updateAlways */);
         }
+
+        @Override
+        public void onFingerprintAttemptFailed(boolean error, int errorCode) {
+            update(!error);
+        }
+
+        @Override
+        public void onKeyguardBouncerChanged(boolean bouncer) {
+            if (!bouncer && mFingerUnlockRunning) {
+                update(true /* updateAlways */);
+            }
+        }
     };
 
     public boolean isTrustManaged() {
@@ -141,6 +158,10 @@ public class UnlockMethodCache {
 
     public boolean isFaceUnlockRunning() {
         return mFaceUnlockRunning;
+    }
+
+    public boolean isFingerUnlockRunning() {
+        return mFingerUnlockRunning;
     }
 
     public static interface OnUnlockMethodChangedListener {

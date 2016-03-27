@@ -21,6 +21,7 @@ import static android.media.AudioManager.RINGER_MODE_NORMAL;
 import static android.media.AudioManager.RINGER_MODE_SILENT;
 import static android.media.AudioManager.RINGER_MODE_VIBRATE;
 
+import android.Manifest;
 import android.app.ActivityManager;
 import android.app.ActivityManagerNative;
 import android.app.AppOpsManager;
@@ -128,10 +129,10 @@ public class AudioService extends IAudioService.Stub {
     private static final boolean DEBUG_SESSIONS = Log.isLoggable(TAG + ".SESSIONS", Log.DEBUG);
 
     /** Allow volume changes to set ringer mode to silent? */
-    private static final boolean VOLUME_SETS_RINGER_MODE_SILENT = false;
+    private static final boolean VOLUME_SETS_RINGER_MODE_SILENT = true;
 
     /** In silent mode, are volume adjustments (raises) prevented? */
-    private static final boolean PREVENT_VOLUME_ADJUSTMENT_IF_SILENT = true;
+    private static final boolean PREVENT_VOLUME_ADJUSTMENT_IF_SILENT = false;
 
     /** How long to delay before persisting a change in volume/ringer mode. */
     private static final int PERSIST_DELAY = 500;
@@ -412,6 +413,15 @@ public class AudioService extends IAudioService.Stub {
     /** @see System#MUTE_STREAMS_AFFECTED */
     private int mMuteAffectedStreams;
 
+    /** @see #handleHotwordInput **/
+    private Object mHotwordInputLock = new Object();
+
+    /** The package name of the application that is
+     * currently using the HOTWORD input.
+     */
+    // protected by mHotwordInputLock
+    private String mHotwordAudioInputPackage;
+
     /**
      * NOTE: setVibrateSetting(), getVibrateSetting(), shouldVibrate() are deprecated.
      * mVibrateSetting is just maintained during deprecation period but vibration policy is
@@ -525,7 +535,6 @@ public class AudioService extends IAudioService.Stub {
     // Devices for which the volume is fixed and VolumePanel slider should be disabled
     int mFixedVolumeDevices = AudioSystem.DEVICE_OUT_HDMI |
             AudioSystem.DEVICE_OUT_DGTL_DOCK_HEADSET |
-            AudioSystem.DEVICE_OUT_ANLG_DOCK_HEADSET |
             AudioSystem.DEVICE_OUT_PROXY |
             AudioSystem.DEVICE_OUT_HDMI_ARC |
             AudioSystem.DEVICE_OUT_SPDIF |
@@ -537,6 +546,9 @@ public class AudioService extends IAudioService.Stub {
     private final boolean mMonitorRotation;
 
     private boolean mDockAudioMediaEnabled = true;
+
+    private boolean mForceAnalogDeskDock;
+    private boolean mForceAnalogCarDock;
 
     private int mDockState = Intent.EXTRA_DOCK_STATE_UNDOCKED;
 
@@ -643,6 +655,11 @@ public class AudioService extends IAudioService.Stub {
                 com.android.internal.R.bool.config_useMasterVolume);
         mMasterVolumeRamp = context.getResources().getIntArray(
                 com.android.internal.R.array.config_masterVolumeRamp);
+
+        mForceAnalogDeskDock = mContext.getResources().getBoolean(
+                com.android.internal.R.bool.config_forceAnalogDeskDock);
+        mForceAnalogCarDock = mContext.getResources().getBoolean(
+                com.android.internal.R.bool.config_forceAnalogCarDock);
 
         // read this in before readPersistedSettings() because updateStreamVolumeAlias needs it
         mLinkNotificationWithVolume = Settings.Secure.getInt(mContext.getContentResolver(),
@@ -1455,6 +1472,46 @@ public class AudioService extends IAudioService.Stub {
         sendVolumeUpdate(streamType, oldIndex, index, flags);
     }
 
+    /**
+     * Retrieve the package name of the application that currently controls
+     * the {@link android.media.MediaRecorder.AudioSource#HOTWORD} input.
+     * @return The package name of the application that controls the input
+     * or null if no package currently controls it.
+     */
+    public String getCurrentHotwordInputPackageName() {
+        return mHotwordAudioInputPackage;
+    }
+
+    /**
+     * Handle the change of state of the HOTWORD input.
+     *
+     * When the {@link android.media.MediaRecorder.AudioSource#HOTWORD} input is
+     * in use, send a broadcast to alert the new state and store the name of the current
+     * package that controls the input in mHotwordAudioInputPackage.
+     * @param listening Whether the input is being listened to.
+     */
+    public void handleHotwordInput(boolean listening) {
+        synchronized (mHotwordInputLock) {
+            Intent broadcastIntent = new Intent(Intent.ACTION_HOTWORD_INPUT_CHANGED);
+            String[] packages = mContext.getPackageManager().getPackagesForUid(
+                    Binder.getCallingUid());
+            if (packages.length > 0) {
+                if (listening) {
+                    mHotwordAudioInputPackage = packages[0];
+                }
+                broadcastIntent.putExtra(Intent.EXTRA_CURRENT_PACKAGE_NAME, packages[0]);
+            }
+            broadcastIntent.putExtra(Intent.EXTRA_HOTWORD_INPUT_STATE,
+                                     listening ? AudioRecord.RECORDSTATE_RECORDING :
+                                     AudioRecord.RECORDSTATE_STOPPED);
+            // Set the currently listening package to null if listening has stopped.
+            if (!listening) {
+                mHotwordAudioInputPackage = null;
+            }
+            sendBroadcastToAll(broadcastIntent, Manifest.permission.CAPTURE_AUDIO_HOTWORD);
+        }
+    }
+
     /** @see AudioManager#forceVolumeControlStream(int) */
     public void forceVolumeControlStream(int streamType, IBinder cb) {
         synchronized(mForceControlStreamLock) {
@@ -1542,10 +1599,14 @@ public class AudioService extends IAudioService.Stub {
     }
 
     private void sendBroadcastToAll(Intent intent) {
+        sendBroadcastToAll(intent, null);
+    }
+
+    private void sendBroadcastToAll(Intent intent, String receiverPermission) {
         intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
         final long ident = Binder.clearCallingIdentity();
         try {
-            mContext.sendBroadcastAsUser(intent, UserHandle.ALL);
+            mContext.sendBroadcastAsUser(intent, UserHandle.ALL, receiverPermission);
         } finally {
             Binder.restoreCallingIdentity(ident);
         }
@@ -3498,9 +3559,15 @@ public class AudioService extends IAudioService.Stub {
                     if (DEBUG_VOL) Log.v(TAG, "getActiveStreamType: forcing STREAM_MUSIC");
                     return AudioSystem.STREAM_MUSIC;
                 } else {
-                    if (DEBUG_VOL) Log.v(TAG,
-                            "getActiveStreamType: using STREAM_NOTIFICATION as default");
-                    return AudioSystem.STREAM_NOTIFICATION;
+                    if (mVolumeKeysControlRingStream) {
+                        if (DEBUG_VOL)
+                            Log.v(TAG, "getActiveStreamType: Forcing STREAM_NOTIFICATION b/c default");
+                        return AudioSystem.STREAM_NOTIFICATION;
+                    } else {
+                        if (DEBUG_VOL)
+                            Log.v(TAG, "getActiveStreamType: Forcing STREAM_MUSIC b/c default");
+                        return AudioSystem.STREAM_MUSIC;
+                    }
                 }
             }
             break;
@@ -4979,7 +5046,9 @@ public class AudioService extends IAudioService.Stub {
     {
         boolean launchPlayer = Settings.System.getIntForUser(mContext.getContentResolver(),
                 Settings.System.HEADSET_CONNECT_PLAYER, 0, UserHandle.USER_CURRENT) != 0;
-        if (launchPlayer) {
+
+        TelecomManager tm = (TelecomManager) mContext.getSystemService(Context.TELECOM_SERVICE);
+        if (launchPlayer && !tm.isInCall()) {
             Intent playerIntent = new Intent(Intent.ACTION_MAIN);
             playerIntent.addCategory(Intent.CATEGORY_APP_MUSIC);
             playerIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -5111,10 +5180,12 @@ public class AudioService extends IAudioService.Stub {
                 int config;
                 switch (dockState) {
                     case Intent.EXTRA_DOCK_STATE_DESK:
-                        config = AudioSystem.FORCE_BT_DESK_DOCK;
+                        config = mForceAnalogDeskDock ? AudioSystem.FORCE_ANALOG_DOCK :
+                                                        AudioSystem.FORCE_BT_DESK_DOCK;
                         break;
                     case Intent.EXTRA_DOCK_STATE_CAR:
-                        config = AudioSystem.FORCE_BT_CAR_DOCK;
+                        config = mForceAnalogCarDock ? AudioSystem.FORCE_ANALOG_DOCK :
+                                                       AudioSystem.FORCE_BT_CAR_DOCK;
                         break;
                     case Intent.EXTRA_DOCK_STATE_LE_DESK:
                         config = AudioSystem.FORCE_ANALOG_DOCK;

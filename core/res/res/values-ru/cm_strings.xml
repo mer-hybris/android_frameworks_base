@@ -17,21 +17,9 @@
      limitations under the License.
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-  <string name="profileNameDefault">Стандартный</string>
-  <string name="profileNameWork">Работа</string>
-  <string name="profileNameHome">Дом</string>
-  <string name="profileNameSilent">Без звука</string>
-  <string name="profileNameNight">Ночь</string>
-  <string name="profileNameAutomobile">Автомобиль</string>
-  <string name="profileGroupPhone">Телефон</string>
-  <string name="profileGroupCalendar">Календарь</string>
-  <string name="profileGroupGmail">Gmail</string>
-  <string name="profileGroupEmail">Почта</string>
-  <string name="profileGroupSMS">Сообщения</string>
-  <string name="wildcardProfile">Другой</string>
-  <string name="profile_none">Не выбран</string>
   <string name="profile_picker_title">Профили</string>
   <string name="global_action_choose_profile">Профиль</string>
+  <string name="profile_none">Нет</string>
   <string name="global_action_screenshot">Скриншот</string>
   <string name="permlab_receiveProtectedSms">Получение защищённых SMS</string>
   <string name="permdesc_receiveProtectedSms">Приложение сможет получать входящие защищённые SMS-сообщения.</string>
@@ -53,8 +41,6 @@
   <string name="permdesc_changePrivacyGuardState">Приложение сможет изменять состояние защищённого режима для других приложений. Когда приложение запущено в защищённом режиме, оно не получает доступ к персональным данным, таким как контакты, сообщения или журнал звонков.</string>
   <string name="privacy_guard_notification">Защищённый режим включён</string>
   <string name="privacy_guard_notification_detail">У «<xliff:g id="app">%1$s</xliff:g>» нет доступа к персональным данным</string>
-  <string name="permlab_useHardwareFramework">Взаимодействие с оборудованием</string>
-  <string name="permdesc_useHardwareFramework">Приложение сможет получать доступ к подсистеме аппаратных абстракций CyanogenMod.</string>
   <string name="permlab_setKeyguardWallpaper">Установка обоев экрана блокировки</string>
   <string name="permdesc_setKeyguardWallpaper">Приложение сможет изменять обои экрана блокировки устройства.</string>
   <string name="privacy_guard_dialog_title">Защищённый режим</string>
@@ -75,6 +61,10 @@
   <string name="adb_both_active_notification_title">Отладка по сети и USB разрешена</string>
   <string name="adb_active_generic_notification_message">Нажмите, чтобы отключить отладку.</string>
   <string name="usb_choose_notification_title">Нажмите, чтобы выбрать режим USB-подключения.</string>
+  <string name="adb_active_custom_tile">Отладка <xliff:g id="adb_type" example="USB">%1$s</xliff:g></string>
+  <string name="adb_active_custom_tile_both">по сети и USB</string>
+  <string name="adb_active_custom_tile_usb">по USB</string>
+  <string name="adb_active_custom_tile_net">по сети</string>
   <string name="permlab_interceptPackageLaunch">Перехват запуска приложений</string>
   <string name="permdesc_interceptPackageLaunch">Приложение сможет перехватывать запуск других приложений на устройстве.</string>
   <string name="app_ops_access_camera">получить доступ к камере</string>
@@ -89,7 +79,7 @@
   <string name="app_ops_delete_mms">удалить MMS-сообщения</string>
   <string name="app_ops_delete_sms">удалить SMS-сообщения</string>
   <string name="app_ops_draw_on_top">отображать элементы интерфейса поверх других окон</string>
-  <string name="app_ops_get_usage_stats">получить статистику использования приложений</string>
+  <string name="app_ops_get_usage_stats">получать статистику использования приложений</string>
   <string name="app_ops_keep_device_awake">запретить устройству переход в спящий режим</string>
   <string name="app_ops_make_phone_call">выполнить телефонный звонок</string>
   <string name="app_ops_modify_calendar">изменить данные календаря</string>
@@ -108,13 +98,13 @@
   <string name="app_ops_read_mms">считать MMS-сообщения</string>
   <string name="app_ops_read_sms">считать SMS-сообщения</string>
   <string name="app_ops_receive_sms">получить SMS-сообщение</string>
-  <string name="app_ops_record_audio">запись аудио</string>
+  <string name="app_ops_record_audio">записать аудио</string>
   <string name="app_ops_send_mms">отправить MMS-сообщение</string>
   <string name="app_ops_send_sms">отправить SMS-сообщение</string>
   <string name="app_ops_start_at_bootup">назначить запуск при включении устройства</string>
   <string name="app_ops_toast_window">отображать всплывающие уведомления</string>
   <string name="app_ops_toggle_bluetooth">переключить состояние Bluetooth</string>
-  <string name="app_ops_toggle_mobile_data">переключить состояние Мобильного интернета</string>
+  <string name="app_ops_toggle_mobile_data">переключить состояние мобильного интернета</string>
   <string name="app_ops_toggle_nfc">переключить состояние модуля NFC</string>
   <string name="app_ops_toggle_wifi">переключить состояние Wi-Fi</string>
   <string name="app_ops_use_alarm_volume">получить управление громкостью будильника</string>
@@ -130,12 +120,12 @@
   <string name="app_ops_write_mms">создать MMS-сообщение</string>
   <string name="app_ops_write_sms">создать SMS-сообщение</string>
   <string name="lockscreen_sim_error_message_short">Неисправная SIM-карта.</string>
-  <string name="lockscreen_airplane_mode_on">Режим полета</string>
+  <string name="lockscreen_airplane_mode_on">Режим полёта</string>
   <string name="usb_charging_notification_title">Подключен в режиме зарядки</string>
   <string name="tethered_notification_no_device_message">Нет подключенных устройств</string>
   <string name="tethered_notification_one_device_message"><xliff:g id="count">%1$s</xliff:g> подключенное устройство</string>
   <string name="tethered_notification_multi_device_message">Подключено устройств: <xliff:g id="count">%1$s</xliff:g></string>
-  <string name="progress_nomediapresent" product="default">Отсутствует внешний накопитель</string>
+  <string name="progress_nomediapresent" product="default">Отсутствует внешний накопитель\u2026</string>
   <string name="storage_uicc">Хранилище UICC</string>
   <string name="China_Mobile">China Mobile</string>
   <string name="China_Unicom">China Unicom</string>
@@ -144,6 +134,8 @@
   <string name="perf_profile_pwrsv">Экономия энергии</string>
   <string name="perf_profile_bal">Сбалансиров.</string>
   <string name="perf_profile_perf">Высокая производит.</string>
+  <string name="perf_profile_bias_power">Энергоэффективный</string>
+  <string name="perf_profile_bias_perf">Оптим. производит.</string>
   <string name="theme_install_error_title">Не удалось установить тему</string>
   <string name="theme_install_error_message">Сбой при установке «%s»</string>
   <string name="theme_reset_notification_title">Тема отключена</string>
@@ -172,7 +164,7 @@
   <string name="usb_media_removed">USB-накопитель извлечён.</string>
   <string name="usb_media_shared">Сейчас USB-накопитель используется компьютером.</string>
   <string name="sd_ext_media_checking_notification_title">Подготовка SD-карты</string>
-  <string name="sd_ext_media_checking_notification_message">Выполняется проверка карты на наличие ошибок.</string>
+  <string name="sd_ext_media_checking_notification_message">Выполняется проверка SD-карты на наличие ошибок.</string>
   <string name="sd_ext_media_nofs_notification_title">Пустая SD-карта</string>
   <string name="sd_ext_media_nofs_notification_message">SD-карта пуста или имеет неподдерживаемую файловую систему.</string>
   <string name="sd_ext_media_unmountable_notification_title">Повреждённая SD-карта</string>
@@ -186,7 +178,7 @@
   <string name="usb_ext_media_checking_notification_title">Подготовка USB-накопителя</string>
   <string name="usb_ext_media_checking_notification_message">Выполняется проверка накопителя на наличие ошибок.</string>
   <string name="usb_ext_media_nofs_notification_title">Пустой USB-накопитель</string>
-  <string name="usb_ext_media_nofs_notification_message">На USB-накопителе нет данных, или его файловая система не поддерживается.</string>
+  <string name="usb_ext_media_nofs_notification_message">На USB-накопителе нет данных или его файловая система не поддерживается.</string>
   <string name="usb_ext_media_unmountable_notification_title">USB-накопитель повреждён</string>
   <string name="usb_ext_media_unmountable_notification_message">USB-накопитель повреждён. Попробуйте отформатировать его.</string>
   <string name="usb_ext_media_badremoval_notification_title">Накопитель неожиданно извлечён</string>
@@ -208,6 +200,17 @@
   <string name="live_display_hint">LiveDisplay поможет снизить зрительное напряжение и улучшить сон. Нажмите здесь, чтобы попробовать!</string>
   <string name="lock_to_app_toast_no_navbar">Чтобы открепить экран, нажмите и удерживайте кнопку «Назад».</string>
   <string name="quick_settings_tile_flashlight_not_title">Фонарик включён</string>
-  <string name="quick_settings_tile_flashlight_not_summary">Нажмите для отключения</string>
+  <string name="quick_settings_tile_flashlight_not_summary">Нажмите, чтобы отключить</string>
   <string name="storage_sd_dock_card">SD-карта док-станции</string>
+  <string name="fingerprint_default_name">Отпечаток пальца <xliff:g id="number">%d</xliff:g></string>
+  <string name="permlab_accessFingerprintService">Доступ к отпечаткам пальцев</string>
+  <string name="permdesc_accessFingerprintService">Разрешение доступа к службе отпечатков пальцев. Приложение сможет добавлять, удалять, редактировать и использовать для авторизации отпечатки пальцев</string>
+  <string name="permlab_resetBatteryStats">Обнуление статистики батареи</string>
+  <string name="permdesc_resetBatteryStats">Разрешить приложению очищать данные об использовании аккумуляторной батареи устройства.</string>
+  <string name="silent_mode_priority">Важные</string>
+  <string name="silent_mode_none">Нет</string>
+  <string name="subscription_change_disabled_wifi_ap">Точка доступа Wi-Fi отключена из-за переключения SIM-карты</string>
+  <string name="notify_turn_wifi_off_title">Выключить Wi-Fi</string>
+  <string name="permlab_thirdPartyKeyguard">Сторонний экран блокировки</string>
+  <string name="permdesc_thirdPartyKeyguard">Приложение сможет работать в качестве небезопасного метода блокировки экрана.</string>
 </resources>

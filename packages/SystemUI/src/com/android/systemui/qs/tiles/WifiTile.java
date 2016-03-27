@@ -58,6 +58,11 @@ public class WifiTile extends QSTile<QSTile.SignalState> {
     }
 
     @Override
+    public boolean hasSensitiveData() {
+        return true;
+    }
+
+    @Override
     protected SignalState newTileState() {
         return new SignalState();
     }
@@ -233,7 +238,7 @@ public class WifiTile extends QSTile<QSTile.SignalState> {
                 int mobileSignalIconId,
                 String mobileSignalContentDescriptionId, int dataTypeIconId,
                 boolean activityIn, boolean activityOut,
-                String dataTypeContentDescriptionId, String description, boolean noSim,
+                String dataTypeContentDescriptionId, String description,
                 boolean isDataTypeIconWide) {
             // noop
         }
@@ -284,7 +289,12 @@ public class WifiTile extends QSTile<QSTile.SignalState> {
         public void setToggleState(boolean state) {
             if (DEBUG) Log.d(TAG, "setToggleState " + state);
             mController.setWifiEnabled(state);
-            showDetail(false);
+            fireToggleStateChanged(state);
+            if (state) {
+                mWifiController.scanForAccessPoints();
+                fireScanStateChanged(true);
+            }
+            setItemsVisible(state);
         }
 
         @Override

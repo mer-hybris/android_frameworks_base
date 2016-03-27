@@ -16,23 +16,21 @@
 
 package com.android.systemui.statusbar.phone;
 
-import android.content.ComponentName;
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.database.ContentObserver;
-import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.os.Process;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
-import android.os.RemoteException;
 import android.os.UserHandle;
 import android.provider.Settings;
-import android.telephony.TelephonyManager;
 import android.util.Log;
 
+import android.widget.RemoteViews;
 import com.android.internal.util.cm.QSConstants;
 import com.android.internal.util.cm.QSUtils;
 import com.android.systemui.R;
@@ -41,6 +39,7 @@ import com.android.systemui.qs.tiles.AdbOverNetworkTile;
 import com.android.systemui.qs.tiles.AirplaneModeTile;
 import com.android.systemui.qs.tiles.AmbientDisplayTile;
 import com.android.systemui.qs.tiles.ApnTile;
+import com.android.systemui.qs.tiles.BatterySaverTile;
 import com.android.systemui.qs.tiles.BluetoothTile;
 import com.android.systemui.qs.tiles.CastTile;
 import com.android.systemui.qs.tiles.CellularTile;
@@ -62,8 +61,10 @@ import com.android.systemui.qs.tiles.ProfilesTile;
 import com.android.systemui.qs.tiles.PerfProfileTile;
 import com.android.systemui.qs.tiles.RoamingTile;
 import com.android.systemui.qs.tiles.RotationLockTile;
+import com.android.systemui.qs.tiles.SyncTile;
 import com.android.systemui.qs.tiles.UsbTetherTile;
 import com.android.systemui.qs.tiles.VisualizerTile;
+import com.android.systemui.qs.tiles.VolumeTile;
 import com.android.systemui.qs.tiles.ScreenTimeoutTile;
 import com.android.systemui.qs.tiles.WifiTile;
 import com.android.systemui.settings.CurrentUserTracker;
@@ -80,7 +81,6 @@ import com.android.systemui.statusbar.policy.UserSwitcherController;
 import com.android.systemui.statusbar.policy.ZenModeController;
 import com.android.systemui.volume.VolumeComponent;
 
-import cyanogenmod.app.CustomTile;
 import cyanogenmod.app.CustomTileListenerService;
 import cyanogenmod.app.StatusBarPanelCustomTile;
 
@@ -96,8 +96,6 @@ public class QSTileHost implements QSTile.Host {
     private static final boolean DEBUG = Log.isLoggable(TAG, Log.DEBUG);
 
     private final Context mContext;
-    private final ConnectivityManager mConnectivityManager;
-    private final TelephonyManager mTelephonyManager;
     private final PhoneStatusBar mStatusBar;
     private final LinkedHashMap<String, QSTile<?>> mTiles = new LinkedHashMap<>();
     private final Observer mObserver = new Observer();
@@ -114,9 +112,9 @@ public class QSTileHost implements QSTile.Host {
     private final UserSwitcherController mUserSwitcherController;
     private final KeyguardMonitor mKeyguard;
     private final SecurityController mSecurity;
-    private Handler mHandler;
 
     private CustomTileData mCustomTileData;
+    private CustomTileListenerService mCustomTileListenerService;
 
     private Callback mCallback;
 
@@ -140,16 +138,11 @@ public class QSTileHost implements QSTile.Host {
         mKeyguard = keyguard;
         mSecurity = security;
         mCustomTileData = new CustomTileData();
-        mConnectivityManager = (ConnectivityManager)
-                mContext.getSystemService(Context.CONNECTIVITY_SERVICE);
-        mTelephonyManager = (TelephonyManager)
-                mContext.getSystemService(Context.TELEPHONY_SERVICE);
 
         final HandlerThread ht = new HandlerThread(QSTileHost.class.getSimpleName(),
                 Process.THREAD_PRIORITY_BACKGROUND);
         ht.start();
         mLooper = ht.getLooper();
-        mHandler = new Handler();
 
         mUserTracker = new CurrentUserTracker(mContext) {
             @Override
@@ -165,17 +158,12 @@ public class QSTileHost implements QSTile.Host {
         };
         recreateTiles();
 
-        // Set up the initial notification state.
-        try {
-            mCustomTileListenerService.registerAsSystemService(mContext,
-                    new ComponentName(mContext.getPackageName(), getClass().getCanonicalName()),
-                    UserHandle.USER_ALL);
-        } catch (RemoteException e) {
-            Log.e(TAG, "Unable to register custom tile listener", e);
-        }
-
         mUserTracker.startTracking();
         mObserver.register();
+    }
+
+    void setCustomTileListenerService(CustomTileListenerService customTileListenerService) {
+        mCustomTileListenerService = customTileListenerService;
     }
 
     @Override
@@ -195,8 +183,10 @@ public class QSTileHost implements QSTile.Host {
 
     @Override
     public void removeCustomTile(StatusBarPanelCustomTile customTile) {
-        mCustomTileListenerService.removeCustomTile(customTile.getPackage(),
-                customTile.getTag(), customTile.getId());
+        if (mCustomTileListenerService != null) {
+            mCustomTileListenerService.removeCustomTile(customTile.getPackage(),
+                    customTile.getTag(), customTile.getId());
+        }
     }
 
     @Override
@@ -207,6 +197,11 @@ public class QSTileHost implements QSTile.Host {
     @Override
     public void collapsePanels() {
         mStatusBar.postAnimateCollapsePanels();
+    }
+
+    @Override
+    public RemoteViews.OnClickHandler getOnClickHandler() {
+        return mStatusBar.getOnClickHandler();
     }
 
     @Override
@@ -272,34 +267,58 @@ public class QSTileHost implements QSTile.Host {
         return mSecurity;
     }
 
+    @SuppressWarnings("rawtypes")
     private void recreateTiles() {
-        if (DEBUG) Log.d(TAG, "Recreating tiles");
-        final List<String> tileSpecs = loadTileSpecs();
-        for (QSTile oldTile : mTiles.values()) {
-            oldTile.destroy();
+        synchronized (mTiles) {
+            if (DEBUG) Log.d(TAG, "Recreating tiles");
+            final List<String> tileSpecs = loadTileSpecs();
+            removeUnusedDynamicTiles(tileSpecs);
+            for (QSTile oldTile : mTiles.values()) {
+                oldTile.destroy();
+            }
+            final LinkedHashMap<String, QSTile<?>> newTiles = new LinkedHashMap<>();
+            for (String tileSpec : tileSpecs) {
+                QSTile<?> t = createTile(tileSpec);
+                if (t != null) {
+                    newTiles.put(tileSpec, t);
+                }
+            }
+
+            mTiles.clear();
+            mTiles.putAll(newTiles);
+            //Iterate through our tiles in memory from 3rd party applications
+            for (CustomTileData.Entry entry : mCustomTileData.getEntries().values()) {
+                mTiles.put(entry.key, new CustomQSTile(this, entry.sbc));
+            }
+            if (mCallback != null) {
+                mCallback.onTilesChanged();
+            }
         }
-        final LinkedHashMap<String, QSTile<?>> newTiles = new LinkedHashMap<>();
-        for (String tileSpec : tileSpecs) {
-            QSTile<?> t = createTile(tileSpec);
-            if (t != null) {
-                newTiles.put(tileSpec, t);
+    }
+
+    private void removeUnusedDynamicTiles(List<String> tileSpecs) {
+        List<CustomTileData.Entry> tilesToRemove = new ArrayList<>();
+        for (CustomTileData.Entry entry : mCustomTileData.getEntries().values()) {
+            if (entry.sbc.getPackage().equals(mContext.getPackageName())
+                    || entry.sbc.getUid() == Process.SYSTEM_UID) {
+                if (!tileSpecs.contains(entry.sbc.getTag())) {
+                    tilesToRemove.add(entry);
+                }
             }
         }
 
-        mTiles.clear();
-        mTiles.putAll(newTiles);
-        //Iterate through our tiles in memory from 3rd party applications
-        for (CustomTileData.Entry entry : mCustomTileData.getEntries().values()) {
-            mTiles.put(entry.key, new CustomQSTile(this, entry.statusBarPanelCustomTile));
-        }
-        if (mCallback != null) {
-            mCallback.onTilesChanged();
+        for (CustomTileData.Entry entry : tilesToRemove) {
+            mCustomTileData.remove(entry.key);
+            removeCustomTile(entry.sbc);
         }
     }
 
     private QSTile<?> createTile(String tileSpec) {
         // Ensure tile is supported on this device
         if (!QSUtils.getAvailableTiles(mContext).contains(tileSpec)) {
+            return null;
+        }
+        if (QSUtils.isDynamicQsTile(tileSpec)) {
             return null;
         }
 
@@ -350,6 +369,8 @@ public class QSTileHost implements QSTile.Host {
                 return new LteTile(this);
             case QSConstants.TILE_VISUALIZER:
                 return new VisualizerTile(this);
+            case QSConstants.TILE_VOLUME:
+                return new VolumeTile(this);
             case QSConstants.TILE_SCREEN_TIMEOUT:
                 return new ScreenTimeoutTile(this);
             case QSConstants.TILE_LIVE_DISPLAY:
@@ -360,6 +381,10 @@ public class QSTileHost implements QSTile.Host {
                 return new HeadsUpTile(this);
             case QSConstants.TILE_AMBIENT_DISPLAY:
                 return new AmbientDisplayTile(this);
+            case QSConstants.TILE_SYNC:
+                return new SyncTile(this);
+            case QSConstants.TILE_BATTERY_SAVER:
+                return new BatterySaverTile(this);
             default:
                 throw new IllegalArgumentException("Bad tile spec: " + tileSpec);
         }
@@ -394,66 +419,44 @@ public class QSTileHost implements QSTile.Host {
         return tiles;
     }
 
-    private final CustomTileListenerService mCustomTileListenerService =
-            new CustomTileListenerService() {
-                @Override
-                public void onListenerConnected() {
-                    //Connected
+    void updateCustomTile(StatusBarPanelCustomTile sbc) {
+        synchronized (mTiles) {
+            if (mTiles.containsKey(sbc.getKey())) {
+                QSTile<?> tile = mTiles.get(sbc.getKey());
+                if (tile instanceof CustomQSTile) {
+                    CustomQSTile qsTile = (CustomQSTile) tile;
+                    qsTile.update(sbc);
                 }
-                @Override
-                public void onCustomTilePosted(final StatusBarPanelCustomTile sbc) {
-                    if (DEBUG) Log.d(TAG, "onCustomTilePosted: " + sbc.getCustomTile());
-                    mHandler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            boolean isUpdate = mCustomTileData.get(sbc.getKey()) != null;
-                            if (isUpdate) {
-                                updateCustomTile(sbc);
-                            } else {
-                                addCustomTile(sbc);
-                            }
-                        }
-                    });
-                }
-
-                @Override
-                public void onCustomTileRemoved(final StatusBarPanelCustomTile sbc) {
-                    if (DEBUG) Log.d(TAG, "onCustomTileRemoved: " + sbc.getCustomTile());
-                    mHandler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            removeCustomTileSysUi(sbc.getKey());
-                        }
-                    });
-                }
-            };
-
-    private void updateCustomTile(StatusBarPanelCustomTile sbc) {
-        if (mTiles.containsKey(sbc.getKey())) {
-            QSTile<?> tile = mTiles.get(sbc.getKey());
-            if (tile instanceof CustomQSTile) {
-                CustomQSTile qsTile = (CustomQSTile) tile;
-                qsTile.update(sbc);
             }
         }
     }
 
-    private void addCustomTile(StatusBarPanelCustomTile sbc) {
-        mCustomTileData.add(new CustomTileData.Entry(sbc));
-        mTiles.put(sbc.getKey(), new CustomQSTile(this, sbc));
-        if (mCallback != null) {
-            mCallback.onTilesChanged();
+    void addCustomTile(StatusBarPanelCustomTile sbc) {
+        synchronized (mTiles) {
+            if (!mTiles.containsKey(sbc.getKey())) {
+                mCustomTileData.add(new CustomTileData.Entry(sbc));
+                mTiles.put(sbc.getKey(), new CustomQSTile(this, sbc));
+                if (mCallback != null) {
+                    mCallback.onTilesChanged();
+                }
+            }
         }
     }
 
-    private void removeCustomTileSysUi(String key) {
-        if (mTiles.containsKey(key)) {
-            mTiles.remove(key);
-            mCustomTileData.remove(key);
-            if (mCallback != null) {
-                mCallback.onTilesChanged();
+    void removeCustomTileSysUi(String key) {
+        synchronized (mTiles) {
+            if (mTiles.containsKey(key)) {
+                mTiles.remove(key);
+                mCustomTileData.remove(key);
+                if (mCallback != null) {
+                    mCallback.onTilesChanged();
+                }
             }
         }
+    }
+
+    CustomTileData getCustomTileData() {
+        return mCustomTileData;
     }
 
     private class Observer extends ContentObserver {

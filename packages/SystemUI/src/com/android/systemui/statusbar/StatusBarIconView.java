@@ -208,7 +208,7 @@ public class StatusBarIconView extends AnimatedImageView {
                     r = pm.getThemedResourcesForApplicationAsUser(icon.iconPackage,
                             pkgName, userId);
                 } else {
-                    r = context.getResources();
+                    r = pm.getResourcesForApplicationAsUser(icon.iconPackage, userId);
                 }
             } catch (PackageManager.NameNotFoundException ex) {
                 Log.e(TAG, "Icon package not found: " + icon.iconPackage);
@@ -298,7 +298,7 @@ public class StatusBarIconView extends AnimatedImageView {
                 android.R.integer.status_bar_notification_info_maxnum);
         if (mIcon.number > tooBig) {
             str = getContext().getResources().getString(
-                        android.R.string.status_bar_notification_info_overflow);
+                        R.string.status_bar_notification_info_overflow);
         } else {
             NumberFormat f = NumberFormat.getIntegerInstance();
             str = f.format(mIcon.number);

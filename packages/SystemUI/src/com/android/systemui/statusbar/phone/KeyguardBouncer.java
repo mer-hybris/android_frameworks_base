@@ -38,6 +38,10 @@ import static com.android.keyguard.KeyguardSecurityModel.SecurityMode;
  */
 public class KeyguardBouncer {
 
+    public static final int UNLOCK_SEQUENCE_DEFAULT = 0;
+    public static final int UNLOCK_SEQUENCE_BOUNCER_FIRST = 1;
+    public static final int UNLOCK_SEQUENCE_FORCE_BOUNCER = 2;
+
     private Context mContext;
     private ViewMediatorCallback mCallback;
     private LockPatternUtils mLockPatternUtils;
@@ -179,7 +183,7 @@ public class KeyguardBouncer {
         mRoot.setSystemUiVisibility(View.STATUS_BAR_DISABLE_HOME);
     }
 
-    private void removeView() {
+    void removeView() {
         if (mRoot != null && mRoot.getParent() == mContainer) {
             mContainer.removeView(mRoot);
             mRoot = null;
@@ -191,34 +195,52 @@ public class KeyguardBouncer {
     }
 
     /**
-     * @return True if and only if the security method should be shown before showing the
-     * notifications on Keyguard, like SIM PIN/PUK.
+     * @return Whether the bouncer should be shown first, this could be because of SIM PIN/PUK
+     * or it just could be chosen to be shown first.
      */
-    public boolean needsFullscreenBouncer() {
+    public int needsFullscreenBouncer() {
         if (mKeyguardView != null) {
             SecurityMode mode = mKeyguardView.getSecurityMode();
-            return mode == SecurityMode.SimPin || mode == SecurityMode.SimPuk;
+            if (mode == SecurityMode.SimPin || mode == SecurityMode.SimPuk) {
+                return UNLOCK_SEQUENCE_FORCE_BOUNCER;
+            } else if ((mode == SecurityMode.Pattern || mode == SecurityMode.Password
+                    || mode == SecurityMode.PIN) && (mLockPatternUtils != null
+                    && mLockPatternUtils.shouldPassToSecurityView()
+                    && !UnlockMethodCache.getInstance(mContext).isCurrentlyInsecure())) {
+                // "Bouncer first" mode currently only available to some security methods, and
+                // only when the lock screen method is secure. Otherwise if we are in a 'trusted'
+                // mode or insecure, bypassing the bouncer is the same as disabling the keyguard.
+                return UNLOCK_SEQUENCE_BOUNCER_FIRST;
+            }
         }
-        return false;
+        return UNLOCK_SEQUENCE_DEFAULT;
     }
 
     /**
      * Like {@link #needsFullscreenBouncer}, but uses the currently visible security method, which
      * makes this method much faster.
      */
-    public boolean isFullscreenBouncer() {
+    public int isFullscreenBouncer() {
         if (mKeyguardView != null) {
             SecurityMode mode = mKeyguardView.getCurrentSecurityMode();
-            return mode == SecurityMode.SimPin || mode == SecurityMode.SimPuk;
+            if (mode == SecurityMode.SimPin || mode == SecurityMode.SimPuk)
+                return UNLOCK_SEQUENCE_FORCE_BOUNCER;
+            // "Bouncer first" mode currently only available to some security methods.
+            else if ((mode == SecurityMode.Pattern || mode == SecurityMode.Password
+                    || mode == SecurityMode.PIN) && (mLockPatternUtils != null &&
+                    mLockPatternUtils.shouldPassToSecurityView() &&
+                    !UnlockMethodCache.getInstance(mContext).isCurrentlyInsecure()))
+                return UNLOCK_SEQUENCE_BOUNCER_FIRST;
         }
-        return false;
+        return UNLOCK_SEQUENCE_DEFAULT;
     }
 
     /**
      * WARNING: This method might cause Binder calls.
      */
     public boolean isSecure() {
-        return mKeyguardView == null || mKeyguardView.getSecurityMode() != SecurityMode.None;
+        return mKeyguardView == null || (mKeyguardView.getSecurityMode() != SecurityMode.None &&
+                mKeyguardView.getSecurityMode() != SecurityMode.ThirdParty);
     }
 
     public boolean onMenuPressed() {

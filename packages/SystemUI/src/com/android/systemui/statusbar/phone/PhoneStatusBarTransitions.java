@@ -49,11 +49,7 @@ public final class PhoneStatusBarTransitions extends BarTransitions {
     public void init() {
         mLeftSide = mView.findViewById(R.id.notification_icon_area);
         mStatusIcons = mView.findViewById(R.id.statusIcons);
-        if (TelephonyManager.getDefault().isMultiSimEnabled()) {
-            mSignalCluster = mView.findViewById(R.id.msim_signal_cluster);
-        } else {
-            mSignalCluster = mView.findViewById(R.id.signal_cluster);
-        }
+        mSignalCluster = mView.findViewById(R.id.signal_cluster);
         mBattery = mView.findViewById(R.id.battery);
         mClock = mView.findViewById(R.id.clock);
         applyModeBackground(-1, getMode(), false /*animate*/);
@@ -65,19 +61,20 @@ public final class PhoneStatusBarTransitions extends BarTransitions {
     }
 
     private float getNonBatteryClockAlphaFor(int mode) {
-        return mode == MODE_LIGHTS_OUT ? ICON_ALPHA_WHEN_LIGHTS_OUT_NON_BATTERY_CLOCK
+        return isLightsOut(mode) ? ICON_ALPHA_WHEN_LIGHTS_OUT_NON_BATTERY_CLOCK
                 : !isOpaque(mode) ? ICON_ALPHA_WHEN_NOT_OPAQUE
                 : mIconAlphaWhenOpaque;
     }
 
     private float getBatteryClockAlpha(int mode) {
-        return mode == MODE_LIGHTS_OUT ? ICON_ALPHA_WHEN_LIGHTS_OUT_BATTERY_CLOCK
+        return isLightsOut(mode) ? ICON_ALPHA_WHEN_LIGHTS_OUT_BATTERY_CLOCK
                 : getNonBatteryClockAlphaFor(mode);
     }
 
     private boolean isOpaque(int mode) {
         return !(mode == MODE_SEMI_TRANSPARENT || mode == MODE_TRANSLUCENT
-                || mode == MODE_TRANSPARENT);
+                || mode == MODE_TRANSPARENT || mode == MODE_LIGHTS_OUT_TRANSPARENT
+                || mode == MODE_LIGHTS_OUT_TRANSLUCENT);
     }
 
     @Override
@@ -102,7 +99,7 @@ public final class PhoneStatusBarTransitions extends BarTransitions {
                     animateTransitionTo(mBattery, newAlphaBC),
                     animateTransitionTo(mClock, newAlphaBC)
                     );
-            if (mode == MODE_LIGHTS_OUT) {
+            if (isLightsOut(mode)) {
                 anims.setDuration(LIGHTS_OUT_DURATION);
             }
             anims.start();

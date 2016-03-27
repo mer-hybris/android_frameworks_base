@@ -99,6 +99,7 @@ public class ThemeService extends IThemeService.Stub {
 
     private static final String GOOGLE_SETUPWIZARD_PACKAGE = "com.google.android.setupwizard";
     private static final String CM_SETUPWIZARD_PACKAGE = "com.cyanogenmod.setupwizard";
+    private static final String MANAGED_PROVISIONING_PACKAGE = "com.android.managedprovisioning";
 
     private static final long MAX_ICON_CACHE_SIZE = 33554432L; // 32MB
     private static final long PURGED_ICON_CACHE_SIZE = 25165824L; // 24 MB
@@ -114,6 +115,7 @@ public class ThemeService extends IThemeService.Stub {
     private int mProgress;
     private boolean mWallpaperChangedByUs = false;
     private long mIconCacheSize = 0L;
+    private int mCurrentUserId = UserHandle.USER_OWNER;
 
     private boolean mIsThemeApplying = false;
 
@@ -398,7 +400,8 @@ public class ThemeService extends IThemeService.Stub {
         }
 
         if (request.getWallpaperThemePackageName() != null) {
-            if (updateWallpaper(request.getWallpaperThemePackageName())) {
+            if (updateWallpaper(request.getWallpaperThemePackageName(),
+                    request.getWallpaperId())) {
                 mWallpaperChangedByUs = true;
             }
             incrementProgress(progressIncrement);
@@ -498,12 +501,19 @@ public class ThemeService extends IThemeService.Stub {
             if (selectionArgs[0] == null) {
                 continue; // No equivalence between mixnmatch and theme
             }
+
+            // Add component ID for multiwallpaper
+            if (ThemesColumns.MODIFIES_LAUNCHER.equals(component)) {
+                values.put(MixnMatchColumns.COL_COMPONENT_ID, request.getWallpaperId());
+            }
+
             mContext.getContentResolver().update(MixnMatchColumns.CONTENT_URI, values, where,
                     selectionArgs);
         }
     }
 
     private boolean updateIcons(String pkgName) {
+        ThemeUtils.clearIconCache();
         try {
             if (pkgName.equals(SYSTEM_DEFAULT)) {
                 mPM.updateIconMaps(null);
@@ -685,7 +695,7 @@ public class ThemeService extends IThemeService.Stub {
         return true;
     }
 
-    private boolean updateWallpaper(String pkgName) {
+    private boolean updateWallpaper(String pkgName, long id) {
         WallpaperManager wm = WallpaperManager.getInstance(mContext);
         if (SYSTEM_DEFAULT.equals(pkgName)) {
             try {
@@ -702,7 +712,7 @@ public class ThemeService extends IThemeService.Stub {
         } else {
             InputStream in = null;
             try {
-                in = ImageUtils.getCroppedWallpaperStream(pkgName, mContext);
+                in = ImageUtils.getCroppedWallpaperStream(pkgName, id, mContext);
                 if (in != null)
                     wm.setStream(in);
             } catch (Exception e) {
@@ -853,6 +863,7 @@ public class ThemeService extends IThemeService.Stub {
 
     private boolean isSetupActivity(ResolveInfo info) {
         return GOOGLE_SETUPWIZARD_PACKAGE.equals(info.activityInfo.packageName) ||
+               MANAGED_PROVISIONING_PACKAGE.equals(info.activityInfo.packageName) ||
                CM_SETUPWIZARD_PACKAGE.equals(info.activityInfo.packageName);
     }
 
@@ -1154,7 +1165,8 @@ public class ThemeService extends IThemeService.Stub {
         @Override
         public void onReceive(Context context, Intent intent) {
             int userHandle = intent.getIntExtra(Intent.EXTRA_USER_HANDLE, -1);
-            if (userHandle >= 0) {
+            if (userHandle >= 0 && userHandle != mCurrentUserId) {
+                mCurrentUserId = userHandle;
                 ThemeConfig config = ThemeConfig.getBootThemeForUser(mContext.getContentResolver(),
                         userHandle);
                 if (DEBUG) {

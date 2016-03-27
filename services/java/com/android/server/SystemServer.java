@@ -439,7 +439,6 @@ public final class SystemServer {
         ConsumerIrService consumerIr = null;
         AudioService audioService = null;
         MmsServiceBroker mmsService = null;
-        ProfileManagerService profile = null;
 
         boolean disableStorage = SystemProperties.getBoolean("config.disable_storage", false);
         boolean disableMedia = SystemProperties.getBoolean("config.disable_media", false);
@@ -661,7 +660,8 @@ public final class SystemServer {
                 }
             }
 
-            if (!disableNonCoreServices) {
+            if (!disableNonCoreServices &&
+                    mPackageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_FLASH)) {
                 try {
                     Slog.i(TAG, "TorchService");
                     ServiceManager.addService(Context.TORCH_SERVICE, new TorchService(context));
@@ -840,16 +840,6 @@ public final class SystemServer {
                     ServiceManager.addService(Context.WALLPAPER_SERVICE, wallpaper);
                 } catch (Throwable e) {
                     reportWtf("starting Wallpaper Service", e);
-                }
-            }
-
-            if (!disableNonCoreServices) {
-                try {
-                    Slog.i(TAG, "Profile Manager");
-                    profile = new ProfileManagerService(context);
-                    ServiceManager.addService(Context.PROFILE_SERVICE, profile);
-                } catch (Throwable e) {
-                    reportWtf("Failure starting Profile Manager", e);
                 }
             }
 
@@ -1045,15 +1035,6 @@ public final class SystemServer {
 
             }
 
-            if (!disableNonCoreServices) {
-                try {
-                    Slog.i(TAG, "CmHardwareService");
-                    ServiceManager.addService(Context.CMHW_SERVICE, new CmHardwareService(context));
-                } catch (Throwable e) {
-                    reportWtf("starting CMHW Service", e);
-                }
-            }
-
             mSystemServiceManager.startService(LauncherAppsService.class);
 
             boolean isWipowerEnabled = SystemProperties.getBoolean("ro.bluetooth.wipower", false);
@@ -1132,6 +1113,16 @@ public final class SystemServer {
         // MMS service broker
         mmsService = mSystemServiceManager.startService(MmsServiceBroker.class);
 
+        // Externally-defined services
+        for (String service : externalServices) {
+            try {
+                Slog.i(TAG, service);
+                mSystemServiceManager.startService(service);
+            } catch (Throwable e) {
+                reportWtf("starting " + service , e);
+            }
+        }
+
         // It is now time to start up the app processes...
 
         try {
@@ -1200,15 +1191,6 @@ public final class SystemServer {
             }
         }
 
-        for (String service : externalServices) {
-            try {
-                Slog.i(TAG, service);
-                mSystemServiceManager.startService(service);
-            } catch (Throwable e) {
-                Slog.e(TAG, "Failure starting " + service , e);
-            }
-        }
-
         if (gestureService != null) {
             try {
                 gestureService.systemReady();
@@ -1270,6 +1252,15 @@ public final class SystemServer {
 
                 Slog.i(TAG, "WebViewFactory preparation");
                 WebViewFactory.prepareWebViewInSystemServer();
+
+                // Start Nfc before SystemUi to ensure NfcTile and other apps gets a
+                // valid NfcAdapter from NfcManager
+                try {
+                    startNfcService(context);
+                } catch (Throwable e) {
+                    // Don't crash. Nfc is an optional service. Just annotate that isn't ready
+                    Slog.e(TAG, "Nfc service didn't start. Nfc will not be available.", e);
+                }
 
                 try {
                     startSystemUi(context);
@@ -1404,6 +1395,25 @@ public final class SystemServer {
                     "com.android.systemui.SystemUIService"));
         //Slog.d(TAG, "Starting service: " + intent);
         context.startServiceAsUser(intent, UserHandle.OWNER);
+    }
+
+    static final void startNfcService(Context context) {
+        IPackageManager pm = ActivityThread.getPackageManager();
+        if (pm == null) {
+            Slog.w(TAG, "Cannot get package manager, assuming no NFC feature");
+            return;
+        }
+        try {
+            if (pm.hasSystemFeature(PackageManager.FEATURE_NFC)) {
+                Intent intent = new Intent();
+                intent.setComponent(new ComponentName("com.android.nfc",
+                            "com.android.nfc.NfcBootstrapService"));
+                context.startServiceAsUser(intent, UserHandle.OWNER);
+            }
+        } catch (RemoteException e) {
+            Slog.w(TAG, "Package manager query failed, assuming no NFC feature", e);
+            return;
+        }
     }
 
     private static final void startDpmService(Context context) {

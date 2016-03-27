@@ -645,6 +645,7 @@ public class PackageParser {
     public final static int PARSE_IS_PRIVILEGED = 1<<7;
     public final static int PARSE_COLLECT_CERTIFICATES = 1<<8;
     public final static int PARSE_TRUSTED_OVERLAY = 1<<9;
+    public final static int PARSE_IS_PREBUNDLED_DIR = 1<<10;
 
     private static final Comparator<String> sSplitNameComparator = new SplitNameComparator();
 
@@ -1123,6 +1124,7 @@ public class PackageParser {
      */
     public void collectManifestDigest(Package pkg) throws PackageParserException {
         pkg.manifestDigest = null;
+        pkg.manifestHashCode = 0;
 
         // TODO: extend to gather digest for split APKs
         try {
@@ -1131,6 +1133,7 @@ public class PackageParser {
                 final ZipEntry je = jarFile.findEntry(ANDROID_MANIFEST_FILENAME);
                 if (je != null) {
                     pkg.manifestDigest = ManifestDigest.fromInputStream(jarFile.getInputStream(je));
+                    pkg.manifestHashCode = ThemeUtils.getPackageHashCode(pkg, jarFile);
                 }
             } finally {
                 jarFile.close();
@@ -2419,6 +2422,10 @@ public class PackageParser {
         perm.info.flags = sa.getInt(
                 com.android.internal.R.styleable.AndroidManifestPermission_permissionFlags, 0);
 
+        perm.info.allowViaWhitelist = sa.getBoolean(
+                com.android.internal.R.styleable.AndroidManifestPermission_allowViaWhitelist,
+                false);
+
         sa.recycle();
 
         if (perm.info.protectionLevel == -1) {
@@ -2571,8 +2578,9 @@ public class PackageParser {
         final ApplicationInfo ai = owner.applicationInfo;
         final String pkgName = owner.applicationInfo.packageName;
 
-        // assume that this package is themeable unless explicitly set to false.
-        ai.isThemeable = true;
+        String[] nonThemeablePackages =
+                res.getStringArray(com.android.internal.R.array.non_themeable_packages);
+        ai.isThemeable = isPackageThemeable(pkgName, nonThemeablePackages);
 
         TypedArray sa = res.obtainAttributes(attrs,
                 com.android.internal.R.styleable.AndroidManifestApplication);
@@ -4371,6 +4379,22 @@ public class PackageParser {
         return true;
     }
 
+    /**1
+     * Returns whether the specified package is themeable
+     * @param packageName Name of package to check
+     * @param nonThemeablePackages Array of packages that are declared as non-themeable
+     * @return True if the package is themeable, false otherwise
+     */
+    private static boolean isPackageThemeable(String packageName, String[] nonThemeablePackages) {
+        for (String pkg : nonThemeablePackages) {
+            if (packageName.startsWith(pkg)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /**
      * Representation of a full package parsed from APK files on disk. A package
      * consists of a single base APK, and zero or more split APKs.
@@ -4518,6 +4542,7 @@ public class PackageParser {
         public boolean mTrustedOverlay;
 
         public boolean hasIconPack;
+        public int manifestHashCode;
 
         /**
          * Data used to feed the KeySetManagerService

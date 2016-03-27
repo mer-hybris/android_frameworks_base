@@ -32,6 +32,7 @@ import android.content.res.Configuration;
 import android.content.res.ThemeConfig;
 import android.content.res.Resources;
 import android.content.res.ResourcesKey;
+import android.graphics.Typeface;
 import android.hardware.display.DisplayManagerGlobal;
 import android.os.IBinder;
 import android.os.RemoteException;
@@ -68,6 +69,12 @@ public class ResourcesManager {
 
     Configuration mResConfiguration;
     final Configuration mTmpConfig = new Configuration();
+
+    /**
+     * Number of default assets attached to a Resource object's AssetManager
+     * This currently includes framework and cmsdk resources
+     */
+    private static final int NUM_DEFAULT_ASSETS = 2;
 
     public static ResourcesManager getInstance() {
         synchronized (ResourcesManager.class) {
@@ -168,10 +175,9 @@ public class ResourcesManager {
     public Resources getTopLevelResources(String resDir, String[] splitResDirs,
             String[] overlayDirs, String[] libDirs, int displayId, String packageName,
             Configuration overrideConfiguration, CompatibilityInfo compatInfo, IBinder token,
-            Context context) {
+            Context context, boolean isThemeable) {
         final float scale = compatInfo.applicationScale;
-        final boolean isThemeable = compatInfo.isThemeable;
-        final ThemeConfig themeConfig = getThemeConfig();
+        ThemeConfig themeConfig = getThemeConfig();
         ResourcesKey key = new ResourcesKey(resDir, displayId, overrideConfiguration, scale,
                 isThemeable, themeConfig, token);
         Resources r;
@@ -199,7 +205,7 @@ public class ResourcesManager {
 
         AssetManager assets = new AssetManager();
         assets.setAppName(packageName);
-        assets.setThemeSupport(compatInfo.isThemeable);
+        assets.setThemeSupport(isThemeable);
         // resDir can be null if the 'android' package is creating a new Resources object.
         // This is fine, since each AssetManager automatically loads the 'android' package
         // already.
@@ -251,20 +257,26 @@ public class ResourcesManager {
 
         boolean iconsAttached = false;
         /* Attach theme information to the resulting AssetManager when appropriate. */
-        if (compatInfo.isThemeable && config != null && !context.getPackageManager().isSafeMode()) {
-            if (config.themeConfig == null) {
+        if (config != null && !context.getPackageManager().isSafeMode()) {
+            if (themeConfig == null) {
                 try {
-                    config.themeConfig = ThemeConfig.getBootTheme(context.getContentResolver());
+                    themeConfig = ThemeConfig.getBootTheme(context.getContentResolver());
                 } catch (Exception e) {
                     Slog.d(TAG, "ThemeConfig.getBootTheme failed, falling back to system theme", e);
-                    config.themeConfig = ThemeConfig.getSystemTheme();
+                    themeConfig = ThemeConfig.getSystemTheme();
                 }
             }
 
-            if (config.themeConfig != null) {
-                attachThemeAssets(assets, config.themeConfig);
-                attachCommonAssets(assets, config.themeConfig);
-                iconsAttached = attachIconAssets(assets, config.themeConfig);
+            if (isThemeable) {
+                if (themeConfig != null) {
+                    attachThemeAssets(assets, themeConfig);
+                    attachCommonAssets(assets, themeConfig);
+                    iconsAttached = attachIconAssets(assets, themeConfig);
+                }
+            } else if (themeConfig != null &&
+                    !ThemeConfig.SYSTEM_DEFAULT.equals(themeConfig.getFontPkgName())) {
+                // use system fonts if not themeable and a theme font is currently in use
+                Typeface.recreateDefaults(true);
             }
         }
 
@@ -302,15 +314,35 @@ public class ResourcesManager {
      *
      * @hide
      */
-    public Resources getTopLevelThemedResources(String resDir, int displayId,
-                                                String packageName,
-                                                String themePackageName,
-                                                CompatibilityInfo compatInfo, IBinder token) {
+    public Resources getTopLevelThemedResources(String resDir, int displayId, String packageName,
+            String themePackageName, Configuration overrideConfiguration,
+            CompatibilityInfo compatInfo, IBinder token, boolean isThemeable) {
         Resources r;
+
+        ThemeConfig.Builder builder = new ThemeConfig.Builder();
+        builder.defaultOverlay(themePackageName);
+        builder.defaultIcon(themePackageName);
+        builder.defaultFont(themePackageName);
+        ThemeConfig themeConfig = builder.build();
+
+        ResourcesKey key = new ResourcesKey(resDir, displayId, overrideConfiguration,
+                compatInfo.applicationScale, isThemeable, themeConfig, token);
+
+        synchronized (this) {
+            WeakReference<Resources> wr = mActiveResources.get(key);
+            r = wr != null ? wr.get() : null;
+            if (r != null && r.getAssets().isUpToDate()) {
+                if (false) {
+                    Slog.w(TAG, "Returning cached resources " + r + " " + resDir
+                            + ": appScale=" + r.getCompatibilityInfo().applicationScale);
+                }
+                return r;
+            }
+        }
 
         AssetManager assets = new AssetManager();
         assets.setAppName(packageName);
-        assets.setThemeSupport(true);
+        assets.setThemeSupport(isThemeable);
         if (assets.addAssetPath(resDir) == 0) {
             return null;
         }
@@ -319,28 +351,49 @@ public class ResourcesManager {
         DisplayMetrics dm = getDisplayMetricsLocked(displayId);
         Configuration config;
         boolean isDefaultDisplay = (displayId == Display.DEFAULT_DISPLAY);
-        if (!isDefaultDisplay) {
+        final boolean hasOverrideConfig = key.hasOverrideConfiguration();
+        if (!isDefaultDisplay || hasOverrideConfig) {
             config = new Configuration(getConfiguration());
-            applyNonDefaultDisplayMetricsToConfigurationLocked(dm, config);
+            if (!isDefaultDisplay) {
+                applyNonDefaultDisplayMetricsToConfigurationLocked(dm, config);
+            }
+            if (hasOverrideConfig) {
+                config.updateFrom(key.mOverrideConfiguration);
+            }
         } else {
             config = getConfiguration();
         }
 
-        /* Attach theme information to the resulting AssetManager when appropriate. */
-        ThemeConfig.Builder builder = new ThemeConfig.Builder();
-        builder.defaultOverlay(themePackageName);
-        builder.defaultIcon(themePackageName);
-        builder.defaultFont(themePackageName);
-
-        ThemeConfig themeConfig = builder.build();
-        attachThemeAssets(assets, themeConfig);
-        attachCommonAssets(assets, themeConfig);
-        attachIconAssets(assets, themeConfig);
-
+        boolean iconsAttached = false;
+        if (isThemeable) {
+            /* Attach theme information to the resulting AssetManager when appropriate. */
+            attachThemeAssets(assets, themeConfig);
+            attachCommonAssets(assets, themeConfig);
+            iconsAttached = attachIconAssets(assets, themeConfig);
+        }
         r = new Resources(assets, dm, config, compatInfo, token);
-        setActivityIcons(r);
+        if (iconsAttached) setActivityIcons(r);
 
-        return r;
+        if (false) {
+            Slog.i(TAG, "Created THEMED app resources " + resDir + " " + r + ": "
+                    + r.getConfiguration() + " appScale="
+                    + r.getCompatibilityInfo().applicationScale);
+        }
+
+        synchronized (this) {
+            WeakReference<Resources> wr = mActiveResources.get(key);
+            Resources existing = wr != null ? wr.get() : null;
+            if (existing != null && existing.getAssets().isUpToDate()) {
+                // Someone else already created the resources while we were
+                // unlocked; go ahead and use theirs.
+                r.getAssets().close();
+                return existing;
+            }
+
+            // XXX need to remove entries when weak references go away
+            mActiveResources.put(key, new WeakReference<Resources>(r));
+            return r;
+        }
     }
 
     /**
@@ -525,10 +578,10 @@ public class ResourcesManager {
         String basePackageName = null;
         String resourcePackageName = null;
         int count = assets.getBasePackageCount();
-        if (count > 1) {
-            basePackageName  = assets.getBasePackageName(1);
-            resourcePackageName = assets.getBaseResourcePackageName(1);
-        } else if (count == 1) {
+        if (count > NUM_DEFAULT_ASSETS) {
+            basePackageName  = assets.getBasePackageName(NUM_DEFAULT_ASSETS);
+            resourcePackageName = assets.getBaseResourcePackageName(NUM_DEFAULT_ASSETS);
+        } else if (count == NUM_DEFAULT_ASSETS) {
             basePackageName  = assets.getBasePackageName(0);
         } else {
             return false;
@@ -657,9 +710,9 @@ public class ResourcesManager {
         // first or else the system will crash!
         String basePackageName;
         int count = assets.getBasePackageCount();
-        if (count > 1) {
-            basePackageName  = assets.getBasePackageName(1);
-        } else if (count == 1) {
+        if (count > NUM_DEFAULT_ASSETS) {
+            basePackageName  = assets.getBasePackageName(NUM_DEFAULT_ASSETS);
+        } else if (count == NUM_DEFAULT_ASSETS) {
             basePackageName  = assets.getBasePackageName(0);
         } else {
             return false;
@@ -725,10 +778,7 @@ public class ResourcesManager {
     }
 
     private ThemeConfig getThemeConfig() {
-        Configuration config = getConfiguration();
-        if (config != null) {
-            return config.themeConfig;
-        }
-        return null;
+        final Configuration config = getConfiguration();
+        return config != null ? config.themeConfig : null;
     }
 }

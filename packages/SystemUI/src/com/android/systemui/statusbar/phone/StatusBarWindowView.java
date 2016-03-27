@@ -197,18 +197,6 @@ public class StatusBarWindowView extends FrameLayout {
 
     @Override
     public boolean onInterceptTouchEvent(MotionEvent ev) {
-        if (mService.getBarState() == StatusBarState.KEYGUARD) {
-            switch (ev.getAction()) {
-                case MotionEvent.ACTION_DOWN:
-                    mService.requestVisualizer(false, 0);
-                    break;
-                case MotionEvent.ACTION_UP:
-                case MotionEvent.ACTION_CANCEL:
-                    mService.requestVisualizer(true, 500);
-                    break;
-            }
-        }
-
         boolean intercept = false;
         if (mDoubleTapToSleepEnabled
                 && ev.getY() < mStatusBarHeaderHeight) {
@@ -241,6 +229,7 @@ public class StatusBarWindowView extends FrameLayout {
 
     @Override
     public boolean onTouchEvent(MotionEvent ev) {
+        final int action = ev.getActionMasked();
         boolean handled = false;
         if (mService.getBarState() == StatusBarState.KEYGUARD && !mService.isQsExpanded()) {
             handled = mDragDownHelper.onTouchEvent(ev);
@@ -248,8 +237,8 @@ public class StatusBarWindowView extends FrameLayout {
         if (!handled) {
             handled = super.onTouchEvent(ev);
         }
-        final int action = ev.getAction();
-        if (!handled && (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL)) {
+        if (!handled && (action == MotionEvent.ACTION_UP
+                || action == MotionEvent.ACTION_CANCEL)) {
             mService.setInteracting(StatusBarManager.WINDOW_STATUS_BAR, false);
         }
         return handled;

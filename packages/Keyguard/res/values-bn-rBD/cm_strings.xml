@@ -18,4 +18,5 @@
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
   <string name="keyguard_perso_locked_message">SIM/RUIM নিজস্বকরণ বন্ধ আছে</string>
+  <string name="lockscreen_sim_error_message_short">অবৈধ কার্ড।</string>
 </resources>

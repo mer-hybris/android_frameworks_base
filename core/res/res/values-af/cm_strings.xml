@@ -17,21 +17,9 @@
      limitations under the License.
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-  <string name="profileNameDefault">Normaal</string>
-  <string name="profileNameWork">Werk</string>
-  <string name="profileNameHome">Huis</string>
-  <string name="profileNameSilent">Stil</string>
-  <string name="profileNameNight">Nag</string>
-  <string name="profileNameAutomobile">Motor</string>
-  <string name="profileGroupPhone">Foon</string>
-  <string name="profileGroupCalendar">Kalender</string>
-  <string name="profileGroupGmail">Gmail</string>
-  <string name="profileGroupEmail">Epos</string>
-  <string name="profileGroupSMS">SMS</string>
-  <string name="wildcardProfile">Ander</string>
-  <string name="profile_none">Geen</string>
   <string name="profile_picker_title">Profiele</string>
   <string name="global_action_choose_profile">Profiel</string>
+  <string name="profile_none">Geen</string>
   <string name="global_action_screenshot">Skermfoto</string>
   <string name="permlab_receiveProtectedSms">ontvang beskermde SMS</string>
   <string name="permdesc_receiveProtectedSms">Laat die program toe om \'n beskermde inkomende SMS te ontvang.</string>
@@ -53,8 +41,6 @@
   <string name="permdesc_changePrivacyGuardState">Laat \'n program toe om te bepaal of \'n ander program met of sonder Privaatheidswag kan loop. Wanneer Privaatheidswag geaktiveer is kan die program nie toegang kry tot persoonlike data soos kontakte, boodskappe en oproep geskiedenis nie.</string>
   <string name="privacy_guard_notification">Privaatheidswag aktief</string>
   <string name="privacy_guard_notification_detail"><xliff:g id="app">%1$s</xliff:g> het nie toegang tot persoonlike data nie</string>
-  <string name="permlab_useHardwareFramework">gebruik hardeware raamwerk</string>
-  <string name="permdesc_useHardwareFramework">Laat program toegang tot die CM hardeware raamwerk.</string>
   <string name="permlab_setKeyguardWallpaper">Stel slotskerm agtergrond in</string>
   <string name="permdesc_setKeyguardWallpaper">Laat \'n program toe om die slotskerm agtergrond te verander.</string>
   <string name="privacy_guard_dialog_title">Privaatheidswag</string>
@@ -75,6 +61,10 @@
   <string name="adb_both_active_notification_title">ADB oor USB &amp; netwerk is aktief</string>
   <string name="adb_active_generic_notification_message">Raak om ontfouting af te skakel.</string>
   <string name="usb_choose_notification_title">Raak om USB opsies te kies.</string>
+  <string name="adb_active_custom_tile">ADB - <xliff:g id="adb_type" example="USB">%1$s</xliff:g></string>
+  <string name="adb_active_custom_tile_both">USB &amp; netwerk</string>
+  <string name="adb_active_custom_tile_usb">USB</string>
+  <string name="adb_active_custom_tile_net">Netwerk</string>
   <string name="permlab_interceptPackageLaunch">onderskep program begin</string>
   <string name="permdesc_interceptPackageLaunch">Laat \'n program toe om ander programme te onderskep as dit begin</string>
   <string name="app_ops_access_camera">toegang tot die kamera</string>
@@ -144,6 +134,8 @@
   <string name="perf_profile_pwrsv">Bespaar krag</string>
   <string name="perf_profile_bal">Gebalanseerd</string>
   <string name="perf_profile_perf">Werkverrigting</string>
+  <string name="perf_profile_bias_power">Doeltreffendheid</string>
+  <string name="perf_profile_bias_perf">Vinnige</string>
   <string name="theme_install_error_title">Kon nie tema installeer</string>
   <string name="theme_install_error_message">%s kon nie geïnstalleer word nie</string>
   <string name="theme_reset_notification_title">Tema herstel</string>
@@ -206,4 +198,19 @@
   <string name="live_display_outdoor">Buitekant (helder son)</string>
   <string name="live_display_outdoor_summary">Alleenlik gebruik buite instellings</string>
   <string name="live_display_hint">LewendigeVertoning kan jou oogspanning verminder en help jou slaap in die nag. Klik hier om dit uit te probeer!</string>
+  <string name="lock_to_app_toast_no_navbar">Om die skerm te ontspeld, raak en hou die Terug knoppie.</string>
+  <string name="quick_settings_tile_flashlight_not_title">Flitslig is aan</string>
+  <string name="quick_settings_tile_flashlight_not_summary">Raak om af te skakel</string>
+  <string name="storage_sd_dock_card">Dok SD-kaart</string>
+  <string name="fingerprint_default_name">Vingerafdruk <xliff:g id="number">%d</xliff:g></string>
+  <string name="permlab_accessFingerprintService">kry toegang tot vingerafdruk diens</string>
+  <string name="permdesc_accessFingerprintService">Laat \'n program toegang tot die vingerafdruk diens. Die program kan byvoeg, verwyder, hernoem en staaf teen vingerafdrukke</string>
+  <string name="permlab_resetBatteryStats">herstel battery statistieke</string>
+  <string name="permdesc_resetBatteryStats">Laat \'n program om die huidige lae-vlak battery gebruik data te herstel.</string>
+  <string name="silent_mode_priority">Prioriteit</string>
+  <string name="silent_mode_none">Geen</string>
+  <string name="subscription_change_disabled_wifi_ap">Deaktiveer Wi-Fi warmkol weens SIM inskrywing verandering</string>
+  <string name="notify_turn_wifi_off_title">Skakel Wi-Fi af</string>
+  <string name="permlab_thirdPartyKeyguard">derde party slotskerm</string>
+  <string name="permdesc_thirdPartyKeyguard">Laat \'n toep toe om gebruik te word as \'n onveilige skermslot.</string>
 </resources>

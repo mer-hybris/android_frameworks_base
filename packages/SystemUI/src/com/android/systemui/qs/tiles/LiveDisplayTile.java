@@ -28,6 +28,8 @@ import com.android.internal.util.ArrayUtils;
 import com.android.systemui.R;
 import com.android.systemui.qs.QSTile;
 
+import cyanogenmod.hardware.CMHardwareManager;
+
 /** Quick settings tile: LiveDisplay mode switcher **/
 public class LiveDisplayTile extends QSTile<LiveDisplayTile.LiveDisplayState> {
 
@@ -35,8 +37,10 @@ public class LiveDisplayTile extends QSTile<LiveDisplayTile.LiveDisplayState> {
             new Intent("android.settings.LIVEDISPLAY_SETTINGS");
 
     private final LiveDisplayObserver mObserver;
-    private final String[] mEntries;
-    private final String[] mValues;
+    private String[] mEntries;
+    private String[] mDescriptionEntries;
+    private String[] mAnnouncementEntries;
+    private String[] mValues;
     private final int[] mEntryIconRes;
 
     private boolean mListening;
@@ -62,18 +66,26 @@ public class LiveDisplayTile extends QSTile<LiveDisplayTile.LiveDisplayState> {
         }
         typedArray.recycle();
 
-        mEntries = res.getStringArray(com.android.internal.R.array.live_display_entries);
-        mValues = res.getStringArray(com.android.internal.R.array.live_display_values);
+        updateEntries();
 
-        mOutdoorModeAvailable = Settings.System.getIntForUser(mContext.getContentResolver(),
-                Settings.System.DISPLAY_AUTO_OUTDOOR_MODE,
-                -1, UserHandle.USER_CURRENT) > -1;
+        mOutdoorModeAvailable =
+                CMHardwareManager.getInstance(mContext)
+                    .isSupported(CMHardwareManager.FEATURE_SUNLIGHT_ENHANCEMENT);
 
         mDefaultDayTemperature = mContext.getResources().getInteger(
                 com.android.internal.R.integer.config_dayColorTemperature);
+        loadDayTemperature();
 
         mObserver = new LiveDisplayObserver(mHandler);
         mObserver.startObserving();
+    }
+
+    private void updateEntries() {
+        Resources res = mContext.getResources();
+        mEntries = res.getStringArray(com.android.internal.R.array.live_display_entries);
+        mDescriptionEntries = res.getStringArray(R.array.live_display_description);
+        mAnnouncementEntries = res.getStringArray(R.array.live_display_announcement);
+        mValues = res.getStringArray(com.android.internal.R.array.live_display_values);
     }
 
     @Override
@@ -105,10 +117,17 @@ public class LiveDisplayTile extends QSTile<LiveDisplayTile.LiveDisplayState> {
 
     @Override
     protected void handleUpdateState(LiveDisplayState state, Object arg) {
+        updateEntries();
         state.visible = true;
         state.mode = arg == null ? getCurrentModeIndex() : (Integer) arg;
         state.label = mEntries[state.mode];
         state.icon = ResourceIcon.get(mEntryIconRes[state.mode]);
+        state.contentDescription = mDescriptionEntries[state.mode];
+    }
+
+    @Override
+    protected String composeChangeAnnouncement() {
+        return mAnnouncementEntries[getCurrentModeIndex()];
     }
 
     private int getCurrentModeIndex() {
@@ -146,6 +165,13 @@ public class LiveDisplayTile extends QSTile<LiveDisplayTile.LiveDisplayState> {
                 Integer.valueOf(mValues[next]), UserHandle.USER_CURRENT);
     }
 
+    private void loadDayTemperature() {
+        mDayTemperature = Settings.System.getIntForUser(mContext.getContentResolver(),
+                Settings.System.DISPLAY_TEMPERATURE_DAY,
+                mDefaultDayTemperature,
+                UserHandle.USER_CURRENT);
+    }
+
     private class LiveDisplayObserver extends ContentObserver {
         public LiveDisplayObserver(Handler handler) {
             super(handler);
@@ -153,10 +179,7 @@ public class LiveDisplayTile extends QSTile<LiveDisplayTile.LiveDisplayState> {
 
         @Override
         public void onChange(boolean selfChange) {
-            mDayTemperature = Settings.System.getIntForUser(mContext.getContentResolver(),
-                    Settings.System.DISPLAY_TEMPERATURE_DAY,
-                    mDefaultDayTemperature,
-                    UserHandle.USER_CURRENT);
+            loadDayTemperature();
             refreshState(getCurrentModeIndex());
         }
 

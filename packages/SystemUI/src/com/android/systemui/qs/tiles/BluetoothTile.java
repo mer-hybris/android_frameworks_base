@@ -52,6 +52,11 @@ public class BluetoothTile extends QSTile<QSTile.BooleanState>  {
     }
 
     @Override
+    public boolean hasSensitiveData() {
+        return true;
+    }
+
+    @Override
     public DetailAdapter getDetailAdapter() {
         return mDetailAdapter;
     }
@@ -199,7 +204,8 @@ public class BluetoothTile extends QSTile<QSTile.BooleanState>  {
         @Override
         public void setToggleState(boolean state) {
             mController.setBluetoothEnabled(state);
-            showDetail(false);
+            fireToggleStateChanged(state);
+            setItemsVisible(state);
         }
 
         @Override

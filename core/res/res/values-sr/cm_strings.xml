@@ -17,21 +17,9 @@
      limitations under the License.
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-  <string name="profileNameDefault">Подразумевано</string>
-  <string name="profileNameWork">Посао</string>
-  <string name="profileNameHome">Кућа</string>
-  <string name="profileNameSilent">Тишина</string>
-  <string name="profileNameNight">Ноћ</string>
-  <string name="profileNameAutomobile">Аутомобил</string>
-  <string name="profileGroupPhone">Телефон</string>
-  <string name="profileGroupCalendar">Календар</string>
-  <string name="profileGroupGmail">Gmail</string>
-  <string name="profileGroupEmail">E-пошта</string>
-  <string name="profileGroupSMS">SMS</string>
-  <string name="wildcardProfile">Друго</string>
-  <string name="profile_none">Ниједан</string>
   <string name="profile_picker_title">Профили</string>
   <string name="global_action_choose_profile">Профил</string>
+  <string name="profile_none">Ниједан</string>
   <string name="global_action_screenshot">Снимак екрана</string>
   <string name="permlab_receiveProtectedSms">прими заштићени SMS</string>
   <string name="permdesc_receiveProtectedSms">Дозволи да апликације приме долазећи заштићени SMS.</string>
@@ -53,8 +41,6 @@
   <string name="permdesc_changePrivacyGuardState">Дозвољава апликацији да промени да ли се друга апликација покреће са заштитом приватности. Када је апликација покренута са заштитом приватности, она неће имати приступ личним подацима, као што су контакти, евиденција позива или поруке.</string>
   <string name="privacy_guard_notification">Заштита приватности је активна</string>
   <string name="privacy_guard_notification_detail"><xliff:g id="app">%1$s</xliff:g> неће бити у могућности да приступи личним подацима</string>
-  <string name="permlab_useHardwareFramework">користи хардверски оквир</string>
-  <string name="permdesc_useHardwareFramework">Дозвољава апликацији приступ CM хардверском оквиру.</string>
   <string name="permlab_setKeyguardWallpaper">постави позадину закључаног екрана</string>
   <string name="permdesc_setKeyguardWallpaper">Омогућава апликацији да промени позадину на закључаном екрану.</string>
   <string name="privacy_guard_dialog_title">Заштита приватности</string>
@@ -71,10 +57,14 @@
   <string name="reboot_confirm" product="default">Tелефон ће се рестартовати.</string>
   <string name="reboot_progress">Рестартовање\u2026</string>
   <string name="app_killed_message">Апликација је затворена</string>
-  <string name="adb_net_active_notification_title">ADB преко мреже омогућено</string>
-  <string name="adb_both_active_notification_title">ADB преко USB &amp; мреже омогућено</string>
+  <string name="adb_net_active_notification_title">ADB преко мреже омогућен</string>
+  <string name="adb_both_active_notification_title">ADB преко USB &amp; мреже омогућен</string>
   <string name="adb_active_generic_notification_message">Додирни да онемогућиш отклањање грешака.</string>
   <string name="usb_choose_notification_title">Додирни да изабереш USB опције.</string>
+  <string name="adb_active_custom_tile">ADB - <xliff:g id="adb_type" example="USB">%1$s</xliff:g></string>
+  <string name="adb_active_custom_tile_both">USB &amp; мрежа</string>
+  <string name="adb_active_custom_tile_usb">USB</string>
+  <string name="adb_active_custom_tile_net">Мрежа</string>
   <string name="permlab_interceptPackageLaunch">пресретни подизање апликације</string>
   <string name="permdesc_interceptPackageLaunch">Дозволи апликацији да пресретне подизање других апликација</string>
   <string name="app_ops_access_camera">приступ камери</string>
@@ -144,6 +134,8 @@
   <string name="perf_profile_pwrsv">Уштеда енергије</string>
   <string name="perf_profile_bal">Уравнотежено</string>
   <string name="perf_profile_perf">Перформансе</string>
+  <string name="perf_profile_bias_power">Ефикасност</string>
+  <string name="perf_profile_bias_perf">Брзина</string>
   <string name="theme_install_error_title">Инсталирање теме није успело</string>
   <string name="theme_install_error_message">%s инсталирање није успело</string>
   <string name="theme_reset_notification_title">Ресетуј тему</string>
@@ -206,4 +198,19 @@
   <string name="live_display_outdoor">Напољу (јако сунце)</string>
   <string name="live_display_outdoor_summary">Користи само подешавања за напоље</string>
   <string name="live_display_hint">LiveDisplay може смањити напрезање очију и помоћи да спавате ноћу. Додирните да пробате!</string>
+  <string name="lock_to_app_toast_no_navbar">Да искључиш овај екран додирни и држи дугме за назад.</string>
+  <string name="quick_settings_tile_flashlight_not_title">Блиц је укључен</string>
+  <string name="quick_settings_tile_flashlight_not_summary">Додирни да угасиш</string>
+  <string name="storage_sd_dock_card">База SD картице</string>
+  <string name="fingerprint_default_name">Отисак <xliff:g id="number">%d</xliff:g></string>
+  <string name="permlab_accessFingerprintService">приступ сервису отиска прста</string>
+  <string name="permdesc_accessFingerprintService">Дозволи апликацији да приступи сервису отиска прста. Апликација може додати, обрисати, преименовати и потврђивати помоћу отиска прста</string>
+  <string name="permlab_resetBatteryStats">ресетуј статистику батерије</string>
+  <string name="permdesc_resetBatteryStats">Омогућава апликацији да ресетује актуелне податке ниског нивоа коришћења батерије.</string>
+  <string name="silent_mode_priority">Приоритет</string>
+  <string name="silent_mode_none">Ниједан</string>
+  <string name="subscription_change_disabled_wifi_ap">Онемогућен Wi-Fi hotspot због промене SIM претплате</string>
+  <string name="notify_turn_wifi_off_title">Искључи Wi-Fi</string>
+  <string name="permlab_thirdPartyKeyguard">закључани екран треће стране</string>
+  <string name="permdesc_thirdPartyKeyguard">Дозволи апликацији да се користи као несигуран закључани екран.</string>
 </resources>
