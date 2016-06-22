@@ -47,6 +47,7 @@ import android.view.WindowManager;
 import android.webkit.WebViewFactory;
 
 import com.android.internal.R;
+import com.android.internal.app.NightDisplayController;
 import com.android.internal.os.BinderInternal;
 import com.android.internal.os.SamplingProfilerIntegration;
 import com.android.server.accessibility.AccessibilityManagerService;
@@ -58,6 +59,7 @@ import com.android.server.clipboard.ClipboardService;
 import com.android.server.content.ContentService;
 import com.android.server.devicepolicy.DevicePolicyManagerService;
 import com.android.server.display.DisplayManagerService;
+import com.android.server.display.NightDisplayService;
 import com.android.server.dreams.DreamManagerService;
 import com.android.server.fingerprint.FingerprintService;
 import com.android.server.hdmi.HdmiControlService;
@@ -861,6 +863,10 @@ public final class SystemServer {
             }
 
             mSystemServiceManager.startService(TwilightService.class);
+
+            if (NightDisplayController.isAvailable(context)) {
+                mSystemServiceManager.startService(NightDisplayService.class);
+            }
 
             mSystemServiceManager.startService(JobSchedulerService.class);
 
