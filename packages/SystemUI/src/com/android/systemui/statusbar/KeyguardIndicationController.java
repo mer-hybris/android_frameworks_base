@@ -43,6 +43,8 @@ import com.android.systemui.statusbar.phone.KeyguardIndicationTextView;
 import com.android.systemui.statusbar.phone.LockIcon;
 import com.android.systemui.statusbar.phone.StatusBarKeyguardViewManager;
 
+import com.fairphone.keyguard.BatteryStatusView;
+
 /**
  * Controls the indications and error messages shown on the Keyguard
  */
@@ -58,6 +60,8 @@ public class KeyguardIndicationController {
     private final Context mContext;
     private final KeyguardIndicationTextView mTextView;
     private final IBatteryStats mBatteryInfo;
+
+    private final BatteryStatusView mBatteryStatusView;
 
     private final int mSlowThreshold;
     private final int mFastThreshold;
@@ -85,6 +89,7 @@ public class KeyguardIndicationController {
         mSlowThreshold = res.getInteger(R.integer.config_chargingSlowlyThreshold);
         mFastThreshold = res.getInteger(R.integer.config_chargingFastThreshold);
 
+        mBatteryStatusView = (BatteryStatusView) textView.getRootView().findViewById(R.id.battery_status_fp);
 
         mBatteryInfo = IBatteryStats.Stub.asInterface(
                 ServiceManager.getService(BatteryStats.SERVICE_NAME));
@@ -157,6 +162,14 @@ public class KeyguardIndicationController {
         if (mVisible) {
             mTextView.switchIndication(computeIndication());
             mTextView.setTextColor(computeColor());
+
+            if (mPowerPluggedIn) {
+                /*
+                 * Refresh more often than after a battery event so that we
+                 * can also catch "system refresh", such as language change.
+                 */
+                mBatteryStatusView.setChargingIndication(computePowerIndication());
+            }
         }
     }
 
@@ -171,12 +184,8 @@ public class KeyguardIndicationController {
         if (!TextUtils.isEmpty(mTransientIndication)) {
             return mTransientIndication;
         }
-        if (mPowerPluggedIn) {
-            String indication = computePowerIndication();
-            if (DEBUG_CHARGING_CURRENT) {
-                indication += ",  " + (mChargingCurrent / 1000) + " mA";
-            }
-            return indication;
+        if (mPowerPluggedIn && DEBUG_CHARGING_CURRENT) {
+            return computePowerIndication() + (mChargingCurrent / 1000) + " mA";
         }
         return mRestingIndication;
     }

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+
+    <!-- When the lock screen is displayed, the phone is plugged in, and the
+         battery is charged, ask to disconnect from the power source. -->
+    <string name="keyguard_disconnect_from_power_source_fp">Unplug your charger</string>
+
+    <!-- When the lock screen is displayed and the phone is not plugged in,
+         display the battery level. No translation should be needed. -->
+    <string name="keyguard_battery_level_fp"><xliff:g example="42%" id="battery_level">%1$d%%</xliff:g></string>
+
+</resources>

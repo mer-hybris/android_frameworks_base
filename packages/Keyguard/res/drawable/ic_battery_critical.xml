@@ -1,0 +1,9 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportHeight="24.0"
+    android:viewportWidth="24.0">
+    <path
+        android:fillColor="@color/battery_critical_fp"
+        android:pathData="M14.985,4.305l0,-2.305l-5.971,0l0,2.305l-2.987,0l0,17.695l11.945,0l0,-17.695zM11.072,7.438h1.91l-0.002,6.586h-1.91l0.002,-6.586zM12.019,17.354c-0.543,0 -0.984,-0.442 -0.984,-0.99 0,-0.549 0.441,-0.992 0.984,-0.992 0.541,0 0.98,0.443 0.98,0.992 0.001,0.546 -0.439,0.99 -0.98,0.99z" />
+</vector>

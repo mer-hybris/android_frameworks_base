@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="widget_small_regular_fp">
+        <item name="android:textSize">@dimen/widget_small_font_size_fp</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:color">@android:color/white</item>
+    </style>
+
+    <style name="widget_medium_regular_fp">
+        <item name="android:textSize">@dimen/widget_medium_font_size_fp</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:color">@android:color/white</item>
+    </style>
+
+</resources>

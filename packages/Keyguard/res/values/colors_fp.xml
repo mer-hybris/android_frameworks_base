@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- General -->
+
+    <!-- opaque white -->
+    <color name="widget_regular_color_fp">@android:color/white</color>
+    <!-- transparent white -->
+    <color name="widget_lighter_color_fp">@*android:color/secondary_text_default_material_dark</color>
+
+    <!-- Battery icon -->
+
+    <!-- light green a400 -->
+    <color name="battery_charged_fp">#76FF03</color>
+    <color name="battery_regular_fp">@*android:color/secondary_text_default_material_dark</color>
+    <!-- red 500 - SystemUI's system_critical_color -->
+    <color name="battery_critical_fp">#f44336</color>
+    <!-- deep orange 600 - SystemUI's system_warning_color -->
+    <color name="battery_low_fp">#f4511e</color>
+    <!--<color name="battery_low_fp">@*android:color/battery_saver_mode_color</color>-->
+
+</resources>
