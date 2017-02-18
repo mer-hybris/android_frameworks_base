@@ -225,9 +225,7 @@ public class KeyguardStatusView extends GridLayout {
         static void update(Context context, boolean hasAlarm) {
             final Locale locale = Locale.getDefault();
             final Resources res = context.getResources();
-            final String dateViewSkel = res.getString(hasAlarm
-                    ? R.string.abbrev_wday_month_day_no_year_alarm
-                    : R.string.abbrev_wday_month_day_no_year);
+            final String dateViewSkel = res.getString(R.string.abbrev_wday_month_day_no_year);
             final String clockView12Skel = res.getString(R.string.clock_12hr_format);
             final String clockView24Skel = res.getString(R.string.clock_24hr_format);
             if (res.getBoolean(com.android.internal.R.bool.config_dateformat)) {
