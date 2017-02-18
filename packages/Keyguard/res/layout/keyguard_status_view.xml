@@ -47,7 +47,6 @@
             android:drawableStart="@drawable/ic_access_alarms_big"
             android:letterSpacing="0.15"
             android:paddingStart="4dp"
-            android:textAllCaps="true"
             android:textColor="@color/widget_lighter_color_fp"
             android:visibility="gone" />
 
@@ -60,8 +59,7 @@
             android:format12Hour="@string/keyguard_widget_12_hours_format"
             android:format24Hour="@string/keyguard_widget_24_hours_format"
             android:includeFontPadding="false"
-            android:maxLines="1"
-            android:textColor="@color/widget_regular_color_fp" />
+            android:maxLines="1" />
 
         <TextClock
             android:id="@+id/date_view"
@@ -71,7 +69,6 @@
             android:layout_marginBottom="10dp"
             android:letterSpacing="0.15"
             android:paddingStart="4dp"
-            android:textAllCaps="true"
             android:textColor="@color/widget_lighter_color_fp" />
 
         <com.fairphone.keyguard.BatteryStatusView
@@ -84,9 +81,9 @@
 
             <ImageView
                 android:id="@+id/battery_icon_fp"
-                android:layout_width="52sp"
-                android:layout_height="52sp"
-                android:paddingStart="-16sp"
+                android:layout_width="@dimen/battery_status_width_fp"
+                android:layout_height="@dimen/battery_status_height_fp"
+                android:paddingStart="-8sp"
                 android:src="@drawable/ic_battery" />
 
             <TextView
@@ -94,17 +91,15 @@
                 style="@style/widget_medium_regular_fp"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="-8dp"
                 android:includeFontPadding="false"
                 android:maxLines="1"
-                android:text="@string/keyguard_battery_level_fp"
-                android:textColor="@color/widget_lighter_color_fp" />
+                android:text="@string/keyguard_battery_level_fp" />
 
             <LinearLayout
                 android:id="@+id/charging_status_fp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="-8dp"
+                android:layout_marginStart="8dp"
                 android:gravity="start|center_vertical"
                 android:orientation="vertical">
 
@@ -116,8 +111,6 @@
                     android:includeFontPadding="false"
                     android:maxLines="1"
                     android:text="@string/keyguard_charged"
-                    android:textColor="@color/widget_lighter_color_fp"
-                    android:textSize="@dimen/widget_medium_font_size_main_fp"
                     android:visibility="gone" />
 
                 <TextView
@@ -129,7 +122,6 @@
                     android:maxLines="1"
                     android:text="@string/keyguard_disconnect_from_power_source_fp"
                     android:textColor="@color/widget_lighter_color_fp"
-                    android:textSize="@dimen/widget_medium_font_size_additional_fp"
                     android:visibility="gone" />
 
             </LinearLayout>

@@ -4,10 +4,10 @@
     <dimen name="widget_big_margin_start">24dp</dimen>
     <dimen name="widget_any_magic_margin_start">29dp</dimen>
 
-    <dimen name="widget_medium_font_size_fp">40sp</dimen>
-    <dimen name="widget_medium_font_size_main_fp">24sp</dimen>
-    <dimen name="widget_medium_font_size_additional_fp">@dimen/widget_label_font_size</dimen>
+    <dimen name="widget_medium_font_size_fp">28sp</dimen>
 
-    <dimen name="battery_status_height_fp">48dp</dimen>
+    <!-- Battery icons are based in a square format. -->
+    <dimen name="battery_status_width_fp">32sp</dimen>
+    <dimen name="battery_status_height_fp">32sp</dimen>
 
 </resources>

@@ -12,7 +12,7 @@
 
     <!-- light green a400 -->
     <color name="battery_charged_fp">#76FF03</color>
-    <color name="battery_regular_fp">@*android:color/secondary_text_default_material_dark</color>
+    <color name="battery_regular_fp">@android:color/white</color>
     <!-- red 500 - SystemUI's system_critical_color -->
     <color name="battery_critical_fp">#f44336</color>
     <!-- deep orange 600 - SystemUI's system_warning_color -->
