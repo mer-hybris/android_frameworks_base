@@ -26,4 +26,10 @@
 
     <!-- Skeleton string format for displaying the time in 24-hour format. -->
     <string name="clock_24hr_format">Hm</string>
+
+    <!-- Skeleton string format for displaying the next alarm in 12-hour format. -->
+    <string name="alarm_12hr_format">EEEEhma</string>
+
+    <!-- Skeleton string format for displaying the next alarm in 24-hour format. -->
+    <string name="alarm_24hr_format">EEEEHm</string>
 </resources>
