@@ -89,7 +89,7 @@ class GlobalActions implements DialogInterface.OnDismissListener, DialogInterfac
 
     private static final String TAG = "GlobalActions";
 
-    private static final boolean SHOW_SILENT_TOGGLE = true;
+    private static final boolean SHOW_SILENT_TOGGLE = false;
 
     /* Valid settings for global actions keys.
      * see config.xml config_globalActionList */
