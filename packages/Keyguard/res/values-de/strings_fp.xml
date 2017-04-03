@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="unplug_your_charger">Ladegerät abstecken</string>
+    <string name="keyguard_disconnect_from_power_source_fp">Ladegerät abstecken</string>
 </resources>
