@@ -459,16 +459,6 @@ final class DefaultPermissionGrantPolicy {
                 grantRuntimePermissionsLPw(galleryPackage, STORAGE_PERMISSIONS, userId);
             }
 
-            // Email
-            Intent emailIntent = new Intent(Intent.ACTION_MAIN);
-            emailIntent.addCategory(Intent.CATEGORY_APP_EMAIL);
-            PackageParser.Package emailPackage = getDefaultSystemHandlerActivityPackageLPr(
-                    emailIntent, userId);
-            if (emailPackage != null
-                    && doesPackageSupportRuntimePermissions(emailPackage)) {
-                grantRuntimePermissionsLPw(emailPackage, CONTACTS_PERMISSIONS, userId);
-            }
-
             // Browser
             PackageParser.Package browserPackage = null;
             String defaultBrowserPackage = mService.getDefaultBrowserPackageName(userId);
