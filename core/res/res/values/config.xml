@@ -1935,6 +1935,39 @@
          obtain user consent to access their location through other means. -->
     <string-array name="config_disabledUntilUsedPreinstalledCarrierApps" translatable="false" />
 
+    <!-- The list of special carrier applications which should be disabled until used.
+         These apps are *not* carrier-privileged apps (e.g. because the carrier does not support the
+         feature itself) and are handled through matching UICC operator codes.
+         (This approach makes the matching rules static - manufacturer-controlled - and not
+         carrier-controlled.)
+         This function suppresses update notifications for these pre-installed apps.
+         In SubscriptionInfoUpdater, the listed applications are disabled until used when all of the
+         following conditions are met:
+         1. Not currently carrier-matched according to the inserted UICC operator code
+         2. Pre-installed
+         3. In the default state (enabled but not explicitly)
+         And SubscriptionInfoUpdater undoes this and marks the app enabled when a UICC is inserted
+         that matches short-listed operator codes.
+         Each item here MUST have matching items (same index) in
+         #config_disabledUntilUsedSpecialCarrierAppUiccOperators, and
+         #config_disabledUntilUsedSpecialCarrierAppBroadcasts.
+         Also, each item here MUST be a unique package name. -->
+    <string-array name="config_disabledUntilUsedSpecialCarrierApps" translatable="false" />
+
+    <!-- The list of UICC operator codes to enable a special carrier application for.
+         An operator code is in the form of "<MCC><MNC>" where MCC is three digits long and MNC
+         either two or three digits long.
+         An empty item is NOT permitted (it will be ignored).
+         If several operator codes are needed, they MUST be separated by commas.
+         Each package name listed in #config_disabledUntilUsedSpecialCarrierApps should have a
+         matching entry (same index) here. -->
+    <string-array name="config_disabledUntilUsedSpecialCarrierAppUiccOperators" translatable="false" />
+
+    <!-- The list of intent actions to broadcast when enabling a special carrier application.
+         Each package name listed in #config_disabledUntilUsedSpecialCarrierApps should have a
+         matching entry (same index) here, even if empty. -->
+    <string-array name="config_disabledUntilUsedSpecialCarrierAppIntents" translatable="false" />
+
     <!-- The list of classes that should be added to the notification ranking pipline.
      See {@link com.android.server.notification.NotificationSignalExtractor} -->
     <string-array name="config_notificationSignalExtractors">
